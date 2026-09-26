@@ -5,9 +5,11 @@ import type {
   ConventionStatus,
   RepoRef,
 } from '@devdigest/shared';
+import { StructuredOutputError } from '@devdigest/reviewer-core';
 import type { Container } from '../../platform/container.js';
-import { NotFoundError, ValidationError } from '../../platform/errors.js';
+import { ExternalServiceError, NotFoundError, ValidationError } from '../../platform/errors.js';
 import { resolveFeatureModel } from '../settings/feature-models.js';
+import type { Logger } from '../reviews/run-executor.js';
 import { ConventionsRepository } from './repository.js';
 import {
   buildSkillDraft,
@@ -71,7 +73,7 @@ export class ConventionsService {
   }
 
   /** Run a scan and replace this repo's pending candidates with the result. */
-  async extract(workspaceId: string, repoId: string): Promise<ConventionExtractResult> {
+  async extract(workspaceId: string, repoId: string, logger?: Logger): Promise<ConventionExtractResult> {
     const repo = await this.container.reposRepo.getById(workspaceId, repoId);
     if (!repo) throw new NotFoundError('Repository not found');
     const ref: RepoRef = { owner: repo.owner, name: repo.name };
@@ -89,20 +91,44 @@ export class ConventionsService {
 
     const choice = await resolveFeatureModel(this.container, workspaceId, 'conventions');
     const llm = await this.container.llm(choice.provider);
-    const result = await llm.completeStructured({
-      model: choice.model,
-      schema: ExtractionSchema,
-      // Matches the fixture key `MockLLMOptions.structuredBySchema` documents
-      // for this feature, so a test can target this call by name.
-      schemaName: 'ConventionExtraction',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(repo.fullName, rendered, sampledPaths) },
-      ],
-      temperature: EXTRACT_TEMPERATURE,
-      maxTokens: EXTRACT_MAX_TOKENS,
-      timeoutMs: EXTRACT_TIMEOUT_MS,
-    });
+    logger?.info(
+      { repoId, provider: choice.provider, model: choice.model },
+      'conventions: resolved extraction model',
+    );
+    let result;
+    try {
+      result = await llm.completeStructured({
+        model: choice.model,
+        schema: ExtractionSchema,
+        // Matches the fixture key `MockLLMOptions.structuredBySchema` documents
+        // for this feature, so a test can target this call by name.
+        schemaName: 'ConventionExtraction',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildUserPrompt(repo.fullName, rendered, sampledPaths) },
+        ],
+        temperature: EXTRACT_TEMPERATURE,
+        maxTokens: EXTRACT_MAX_TOKENS,
+        timeoutMs: EXTRACT_TIMEOUT_MS,
+      });
+    } catch (err) {
+      if (err instanceof StructuredOutputError) {
+        const details = {
+          provider: choice.provider,
+          model: err.model,
+          attempts: err.attempts,
+          finishReason: err.finishReason,
+          raw: err.raw,
+        };
+        logger?.error({ repoId, ...details }, 'conventions: extraction model failed schema validation');
+        throw new ExternalServiceError(err.message, details);
+      }
+      logger?.error(
+        { repoId, provider: choice.provider, model: choice.model, err },
+        'conventions: extraction call failed',
+      );
+      throw err;
+    }
 
     const proposed = result.data.candidates;
     const verified: VerifiedCandidate[] = [];
