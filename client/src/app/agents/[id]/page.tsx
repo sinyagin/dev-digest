@@ -12,7 +12,7 @@ import { AgentEditor } from "./_components/AgentEditor";
 import { useAgents, useAgent, useUpdateAgent } from "../../../lib/hooks/agents";
 import { ApiError } from "../../../lib/api";
 
-const VALID_TABS = ["config"];
+const VALID_TABS = ["config", "skills"];
 
 export default function AgentEditorPage() {
   const params = useParams<{ id: string }>();
@@ -85,6 +85,7 @@ export default function AgentEditorPage() {
                 key={a.id}
                 ag={a}
                 active={a.id === id}
+                skillCount={a.skills_count}
                 onClick={() => router.push(`/agents/${a.id}?tab=${tab}`)}
                 onToggle={(enabled) => update.mutate({ id: a.id, patch: { enabled } })}
               />
@@ -103,7 +104,11 @@ export default function AgentEditorPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 28px 0", flexShrink: 0 }}>
               <Icon.Cpu size={18} style={{ color: "var(--accent)" }} />
               <h1 style={{ fontSize: 18, fontWeight: 700 }}>{agent.name}</h1>
-              <Badge color="var(--text-secondary)" mono>
+              <Badge
+                color="var(--text-secondary)"
+                mono
+                style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
+              >
                 {agent.provider}/{agent.model}
               </Badge>
               {!agent.enabled && <Badge color="var(--text-muted)">disabled</Badge>}

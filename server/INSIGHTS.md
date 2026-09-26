@@ -9,6 +9,104 @@ gotchas, dead ends, decisions that don't belong in the fixed map in
 What happened, what was tried, what actually worked or didn't, and why.
 -->
 
+## 2026-09-22 — Conventions Extractor's git history: a full reference implementation exists, deliberately reverted [Context]
+Commits `641b637` ("feat(conventions): extract repo house-rules and turn them into a skill") and its merge `98eaf57` are real ancestors of `main`/every lesson branch — `git merge-base --is-ancestor 641b637 HEAD` returns true — but `c6af1e4` ("revert: restore main to the starter state, homework belongs in forks") stripped `server/src/modules/conventions/`, `docs/specs/conventions.md`, and the client `conventions` route back out before any `L0x` branch was cut. If a future session on this repo needs to re-derive the Conventions feature's design (SAMPLE/PROPOSE/VERIFY split, the evidence-gate algorithm, schema field-order sensitivity, endpoint shapes), `git show 641b637 --stat` plus `git show 641b637:<path>` recovers the full reference — but treat it as reference material to confirm against the *current* tree's already-diverged Skills module and `agent_skills` link endpoint shape, not something to diff-apply directly (this session's implementation in `server/src/modules/conventions/` deliberately reconciled several such divergences, e.g. no DB-level CHECK constraints — see the entry below).
+
+## 2026-09-22 — Conventions sampling reads CONFIG_SAMPLE_PATHS via `container.git.readFile`, not repo-intel, for an unindexed repo [Context]
+`repoIntel.getConventionSamples(repoId, n)` (`server/src/modules/repo-intel/service.ts:630`, wrapping `getTopFilesByRank`) returns `[]` whenever the repo has no `file_rank` rows yet — i.e. for any repo that hasn't been opened/indexed once, which every freshly-added repo is until then. `ConventionsService.sample()` (`server/src/modules/conventions/service.ts:164-182`) still works for such a repo because it *also* reads `CONFIG_SAMPLE_PATHS` (package.json, tsconfig.json, CLAUDE.md, …) straight off the clone via `container.git.readFile(ref, path)` — that part needs no index at all. First integration-test draft cited evidence from an arbitrary source path that was never in either list, so `sampledPaths` never contained it and the grounded candidate was wrongly dropped as `unknown_file`; fixed by citing `package.json` (a real `CONFIG_SAMPLE_PATHS` entry) instead. Verified live too: a real scan of an unindexed `burnjohn/quick-blog` clone (openrouter/deepseek-v4-flash, ~$0.001) proposed 12/12 grounded candidates purely from config + repo-intel returning `[]`.
+
+## 2026-09-22 — `drizzle-kit generate` blocks on a TTY rename-vs-create prompt when one migration both adds and drops columns [Mistake]
+Editing `conventions` in `server/src/db/schema/knowledge.ts` to add `category`/`rationale`/`evidence_line`/`status`/`created_at` **and** drop the old `accepted` boolean in the same schema edit made `pnpm db:generate` hang forever on `Is category column in conventions table created or renamed from another column?` — drizzle-kit's rename-heuristic prompt, which needs a real TTY. Piping answers via `printf '\n\n' | pnpm db:generate` does not work (the prompt library doesn't read stdin when not a TTY; the command just re-prints the same prompt). Workaround: split into two `db:generate` runs — first add the new columns while temporarily keeping `accepted` (a pure addition, no rename candidates, generates cleanly to `0012_curious_psynapse.sql`), then remove `accepted` and generate again (a pure drop, `0013_fair_naoko.sql`). Two small migrations beat one hung command.
+
+## 2026-09-22 — zod `.default({})` on a Fastify route body only fires for `undefined`, not the `null` a bodyless `app.inject` sends [Context]
+`SkillDraftBody = z.object({ convention_ids: z.array(z.string().uuid()).optional() }).default({})` (`server/src/modules/conventions/routes.ts:33`) exists so `POST /repos/:id/conventions/skill` works with no body at all — and it does for a real client, since `api.post(url, {...})` always serializes at least `{}`. But `app.inject({ method: 'POST', url })` with no `payload` key sends Fastify a `null` body, and zod's `.default()` only substitutes for `undefined` — `null` fails `z.object(...)` validation with `Expected object, received null`, a 422 that looks identical to the route's own business-logic 422 (`ValidationError` for "nothing accepted"). This silently made an early integration-test assertion pass for the wrong reason. Fix in tests, not the route: always pass `payload: {}` explicitly when exercising a `.default({})` body schema via `app.inject`.
+
+## 2026-09-21 — `agent_skills` bulk-replace race caused PK-violation 500s on rapid checkbox toggles [Mistake]
+`AgentsRepository.setSkills` (`server/src/modules/agents/repository.ts:229-235`
+before this fix) did `DELETE all rows for agent` then `INSERT the full new
+list` as two separate, non-transactional statements. There is no per-skill
+attach/detach endpoint — the Skills tab checkbox (`client/src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.tsx`)
+sends the *entire* desired `skill_ids` list on every single toggle (check
+**or** uncheck) via `POST /agents/:id/skills`, and nothing on the client
+prevented two toggles from being in flight at once. Two overlapping requests
+reliably interleaved as `A.DELETE -> B.DELETE(no-op) -> A.INSERT(commits) ->
+B.INSERT` and B's insert collided with a skill id A's insert had just
+committed, throwing `duplicate key value violates unique constraint
+"agent_skills_agent_id_skill_id_pk"` — reproduced deterministically in a test
+via `Promise.all` of two overlapping POSTs against a real Testcontainers
+Postgres (both DELETEs land before either INSERT because each needs its own
+network round-trip). A bare `db.transaction(...)` wrap around the existing
+delete-then-insert would **not** have fixed this — READ COMMITTED doesn't
+stop two transactions' fresh INSERTs of the same key from colliding with
+each other's already-committed rows. The actual fix: rewrite `setSkills` to
+loop `insert(...).onConflictDoUpdate({ target: [agentId, skillId], set: { order } })`
+per desired skill (same idiom as `linkSkill`, `repository.ts:207-216`, and
+the seed-loop fix in the entry below — this table's established safe-upsert
+convention), then `delete ... where notInArray(skillId, skillIds)` for the
+rest, all inside `db.transaction(...)` (the transaction now guards against a
+different failure mode: delete-succeeds-insert-fails silently wiping an
+agent's links, not the PK collision itself). Also added client-side defense
+in depth — `Checkbox.tsx` gained a `disabled` prop (had none before) and
+`SkillsTab.tsx` disables checkboxes / no-ops `toggle()` while
+`setSkills.isPending` — but this only reduces how often overlapping requests
+fire from one tab; it doesn't replace the server-side upsert fix (a second
+browser tab or a retried fetch would still race two disjoint client
+instances).
+
+## 2026-09-20 — `agent_skills` link-order upsert must use `onConflictDoUpdate`, not `onConflictDoNothing` [Bug found via manual smoke test]
+`seed.ts`'s agent↔skill link loop originally used `.onConflictDoNothing()`
+keyed on the `agent_skills` PK (`agentId`,`skillId`). During development the
+skill/order list changed shape more than once, so an earlier seed run had
+already inserted `(testQualityAgentId, flakyTestsSkillId)` at `order: 1`;
+once the final code moved "Flaky tests" to `order: 3` and added "Missed
+corner cases" at `order: 1`, re-running seed left the DB with **one skill
+permanently missing from the agent's linked list and a stale order value on
+another** — `onConflictDoNothing` means a reseed can never repair a link
+that already exists with the wrong `order`, only add brand-new pairs. Found
+by manually hitting `GET /agents/:id/skills` after seeding and getting 3
+links instead of 4. Fixed by switching both link inserts to
+`.onConflictDoUpdate({ target: [agentId, skillId], set: { order } })` —
+matches the file's own doc comment ("re-running **upserts** the demo
+fixtures"). Verified: reseeding twice now converges to the same 4
+correctly-ordered links, and a subsequent `4 skill(s) applied: …` log line
+from a real `POST /pulls/:id/review` run confirmed the fix reaches
+`PromptAssembly.skills` end-to-end (and dropped to `3 skill(s) applied` when
+one was toggled `enabled: false`, as expected). Lesson: any `agent_skills` /
+similarly-ordered join-table seed insert in this repo should default to
+`onConflictDoUpdate` on the mutable columns, not `onConflictDoNothing` —
+the latter is only safe when every column besides the PK is truly immutable
+once set.
+
+## 2026-09-20 — `agent_skills` gives two opposite per-row counts from one join; split into two methods [Decision]
+The Skills feature spec asked for one `SkillsRepository.agentCounts(workspaceId)`
+(`server/src/modules/skills/repository.ts:184-216`) and then, separately, said
+to reuse that same method to populate `Agent.skills_count` in
+`AgentsService.list()`. Those are opposite reductions of the same join: a
+row scoped to `agent_skills` joined to the workspace's `skills` carries both
+an `agentId` and a `skillId`, so grouping it by `skillId` gives "agents per
+skill" (`Skill.agents_count`) while grouping the SAME rows by `agentId`
+gives "skills per agent" (`Agent.skills_count`) — one `Map<string, number>`
+return type can't serve both directions at once. Resolved by factoring the
+join into a private `agentSkillPairs()` and exposing two thin reducers,
+`agentCounts()` (keyed by skillId) and `skillCountsByAgent()` (keyed by
+agentId, used from `server/src/modules/agents/service.ts`'s `list()`) —
+both still "one query, reduce in JS", per the no-`GROUP BY` convention
+below. If a future lesson needs this again, reach for the pair, not a
+single generically-named counter.
+
+## 2026-09-20 — fflate's `unzipSync` lists directory entries as `''`-suffixed empty-body keys [Context]
+`fflate@0.8` (`server/src/modules/skills/import.ts`) returns directories
+from a zip listing as ordinary keys in the same `Record<string, Uint8Array>`
+as files — e.g. `'pkg/'` with a zero-length `Uint8Array`, not omitted and
+not flagged by any separate boolean. There's no `.dir`/`.isDirectory` field
+to check; the only signal is the trailing `/` on the key itself (confirmed
+empirically via `zipSync`/`unzipSync` round-trip, not from reading fflate's
+d.ts). `importSkillFromFile`'s `isDirEntry()`/`isMarkdownEntry()` helpers
+filter on that trailing slash before searching for a `.md` entry AND before
+counting "other files" for the import warning — skipping this filter would
+both misreport the ignored-file count and could false-positive-match a
+directory literally named `something.md/`.
+
 ## 2026-09-18 — PR-list cost column sums runs; score/findings deliberately don't [Decision]
 `GET /repos/:id/pulls` in `modules/pulls/routes.ts` computes three per-PR
 rollups (score, findings, cost) with the same "one IN-query, reduce in JS"
