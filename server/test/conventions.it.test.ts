@@ -4,6 +4,8 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
 import { MockLLMProvider, MockGitClient } from '../src/adapters/mocks.js';
+import { StructuredOutputError } from '@devdigest/reviewer-core';
+import type { LLMProvider, StructuredRequest, StructuredResult } from '@devdigest/shared';
 import * as t from '../src/db/schema.js';
 
 const hasDocker = await dockerAvailable();
@@ -226,6 +228,55 @@ d('conventions module (Testcontainers pg)', () => {
 
     const res = await app.inject({ method: 'POST', url: `/repos/${repo.id}/conventions/extract` });
     expect(res.statusCode).toBe(422);
+
+    await app.close();
+  });
+
+  it('extract: 502 external_service_error with diagnostics when the model exhausts retries on invalid output', async () => {
+    const failingLlm: LLMProvider = {
+      id: 'openai',
+      async listModels() {
+        return [];
+      },
+      async complete() {
+        throw new Error('not implemented');
+      },
+      async completeStructured<T>(_req: StructuredRequest<T>): Promise<StructuredResult<T>> {
+        throw new StructuredOutputError(
+          'OpenRouter structured output failed schema validation for ConventionExtraction',
+          'ConventionExtraction',
+          'some/flaky-model',
+          3,
+          '{"candidates": "not an array"}',
+          'stop',
+        );
+      },
+      async embed() {
+        return [];
+      },
+    };
+
+    const app = await buildApp({
+      config: config(),
+      db: pg.handle.db,
+      overrides: {
+        git: new MockGitClient({ files: { 'package.json': PACKAGE_JSON } }),
+        llm: { openai: failingLlm },
+      },
+    });
+    const repo = await makeRepo('extract-fails');
+
+    const res = await app.inject({ method: 'POST', url: `/repos/${repo.id}/conventions/extract` });
+    expect(res.statusCode).toBe(502);
+    const body = res.json();
+    expect(body.error.code).toBe('external_service_error');
+    expect(body.error.details).toMatchObject({
+      provider: 'openai',
+      model: 'some/flaky-model',
+      attempts: 3,
+      finishReason: 'stop',
+    });
+    expect(body.error.details.raw).toContain('not an array');
 
     await app.close();
   });
