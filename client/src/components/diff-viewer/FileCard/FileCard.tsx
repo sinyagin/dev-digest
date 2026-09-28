@@ -15,6 +15,7 @@ import {
   type CommentThread,
   type DiffCommentApi,
 } from "../comments";
+import { matchFindingsToLines, type DiffFindingApi } from "../findings";
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
@@ -30,12 +31,29 @@ function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): Commen
   return out;
 }
 
-export function FileCard({ file, commenting }: { file: PrFile; commenting?: DiffCommentApi }) {
+export function FileCard({
+  file,
+  commenting,
+  hasFindings,
+  findingApi,
+}: {
+  file: PrFile;
+  commenting?: DiffCommentApi;
+  /** Smart Diff only: shows a plain dot (no number) next to the comment
+     badge when this file has any review findings. */
+  hasFindings?: boolean;
+  findingApi?: DiffFindingApi;
+}) {
   const t = useTranslations("shell");
   const [open, setOpen] = React.useState(
     (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
   );
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
+
+  const findingsByLine = React.useMemo(
+    () => matchFindingsToLines(findingApi?.findingsForFile(file.path) ?? [], lines),
+    [findingApi, file.path, lines],
+  );
 
   // Group this file's comments into threads, then split into ones we can anchor
   // to a rendered line vs. "outdated" (GitHub dropped the line / it's not here).
@@ -72,6 +90,18 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
             {commentCount}
           </span>
         )}
+        {hasFindings && (
+          <span
+            title="Has review findings"
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: 99,
+              background: "var(--warn)",
+              flexShrink: 0,
+            }}
+          />
+        )}
       </div>
       {open && (
         <div style={s.fileBody}>
@@ -85,6 +115,8 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
                 path={file.path}
                 threads={threadsForLine(ln, matched)}
                 commenting={commenting}
+                lineFindings={ln.newNo != null ? findingsByLine.get(ln.newNo) : undefined}
+                findingApi={findingApi}
               />
             ))
           )}
