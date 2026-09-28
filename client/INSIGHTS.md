@@ -9,6 +9,9 @@ gotchas, dead ends, decisions that don't belong in the fixed map in
 What happened, what was tried, what actually worked or didn't, and why.
 -->
 
+## 2026-09-27 — Two separate, unrelated "Intent" i18n homes: `brief.json`'s `block.intent` vs. `prReview.json`'s `intent.*` [Context]
+`client/messages/en/brief.json` already has a `block.intent: "Intent"` label, but it's dead — unreferenced by any component, scaffolded for a not-yet-built "Brief" panel (confirmed via grep across `client/src`). When adding the Intent Layer's `IntentCard` (`client/src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/IntentCard.tsx`), its `useTranslations("prReview")` call means its labels belong under a new `intent.*` namespace in `prReview.json`, not `brief.json` — don't try to reuse or consolidate with the `brief.json` stub; they're two independent features that happen to share the word "Intent". Also worth noting for anyone following a sibling fork's docs: that fork's client mirror of the feature-model registry lives at `lib/utils/featureModels.ts`; this repo's is `client/src/lib/feature-models.ts` (no `utils/` segment) — check the actual path before editing from memory of another repo's layout.
+
 ## 2026-09-20 — `z.number().default(0)` makes a contract field required, not optional, at the type level [Context]
 `Agent.skills_count` and `Skill.agents_count` in `client/src/vendor/shared/contracts/knowledge.ts:132,197`
 are declared `z.number().int().default(0)`. `.default()` only makes a field
