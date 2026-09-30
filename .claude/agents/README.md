@@ -8,10 +8,12 @@ trigger rules ("Use proactively when…").
 | Agent | Model | Role | Writes code? |
 |-------|-------|------|--------------|
 | [`researcher`](./researcher.md) | sonnet | Read-only research (project + internet), strict structured output | No |
+| [`brainstorm`](./brainstorm.md) | sonnet | Read-only ideation — generates candidate approaches before planning | No |
 | [`planner`](./planner.md) | opus | Read-only architect — produces a structured Development Plan | No (only the plan file) |
 | [`implementer`](./implementer.md) | sonnet | Implements ONE task from a plan (backend or UI), self-verifies | Yes |
 | [`test-writer`](./test-writer.md) | sonnet | Writes unit + integration tests (backend + reviewer-core), self-verifies | Yes |
 | [`architecture-reviewer`](./architecture-reviewer.md) | opus | Read-only structural/architecture review of a diff or file set | No |
+| [`security-reviewer`](./security-reviewer.md) | opus | Read-only security audit of a diff or file set | No |
 | [`plan-verifier`](./plan-verifier.md) | opus | Read-only requirements-completion / traceability check | No |
 | [`doc-writer`](./doc-writer.md) | sonnet | Writes documentation (Diátaxis + Mermaid), knows where docs belong | Yes |
 
@@ -19,10 +21,11 @@ trigger rules ("Use proactively when…").
 
 ```
 you / main session
-   └─ planner (opus, read-only) → docs/plans/<feature>.md
-         (phased tasks with Type · Skills · Owned paths · Depends-on · Acceptance)
-         └─ N× implementer (sonnet, parallel) — one task each, inside its Owned paths
-               └─ pr-self-review (existing skill) — final gate before push
+   └─ brainstorm (sonnet, read-only) → 3–5 candidate approaches + tradeoffs (advisory, non-binding)
+         └─ planner (opus, read-only) → docs/plans/<feature>.md
+               (phased tasks with Type · Skills · Owned paths · Depends-on · Acceptance)
+               └─ N× implementer (sonnet, parallel) — one task each, inside its Owned paths
+                     └─ pr-self-review (existing skill) — final gate before push
 ```
 
 The pipeline mirrors Claude Code's recommended **Explore → Plan → Implement → Commit** loop: the
@@ -37,6 +40,32 @@ Pre-existing read-only research agent. Finds information inside the project or o
 internet and returns it in a strict template. Never edits files, never runs deep-research. The
 planner and implementer both follow its writing conventions (YAML frontmatter + Hard rules + fixed
 output template).
+
+---
+
+## `brainstorm`
+
+**What it does.** A **read-only** ideation agent that runs before `planner`, closing the gap where
+the pipeline used to jump straight from a request to one committed plan. Given a feature or problem,
+it reads the relevant `CLAUDE.md`/`INSIGHTS.md`/`docs/`/`specs/` for real constraints, then generates
+3–5 genuinely distinct candidate approaches (spanning conventional/leaner/more-ambitious where the
+problem allows it) with their tradeoffs, affected areas, and complexity — plus the edge cases and
+open questions the request itself doesn't resolve. It never picks a winner, never writes a plan file,
+and never edits anything; `planner` is the one that converges on a single approach and commits it to
+`docs/plans/<feature>.md`. Deep external research an idea might need (library capabilities, prior
+art) is explicitly delegated to `researcher` rather than duplicated here, so its own tool surface
+stays project-only (`Read`, `Glob`, `Grep`).
+
+**Based on:**
+
+- **Separating generation from evaluation into distinct agents/phases** — same-pass generation and
+  filtering suppresses ideas before they're articulated — multi-agent ideation research (arXiv 2507.08350)
+- **Divergent-then-convergent prompting improves idea novelty**, with the convergent/evaluative pass
+  kept in a separate agent (here, `planner`) — LLM divergent-convergent creative generation research (arXiv 2512.23601)
+- **Single-responsibility agent design** and **`description` as the routing trigger** — [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents), [Best practices for Claude Code subagents (PubNub)](https://www.pubnub.com/blog/best-practices-for-claude-code-sub-agents/)
+- **Start simple, constrain aggressively** (narrow tool set, explicit stopping criteria) — [Building effective agents (Anthropic)](https://resources.anthropic.com/building-effective-ai-agents)
+- **Delegating heavy discovery to a subagent** to keep context clean, the same pattern already used by `planner` — [subagents docs](https://code.claude.com/docs/en/sub-agents)
+- **Sonnet for the breadth-generation stage**, reserving opus for `planner`'s convergence (model tiering) — [wshobson/agents](https://github.com/wshobson/agents)
 
 ---
 
@@ -144,6 +173,31 @@ only.
 - **Parallel AI agents for code review** — [9 Parallel AI Agents That Review My Code (HAMY)](https://hamy.xyz/blog/2026-02_code-reviews-claude-subagents)
 - **Architectural liquefaction and the need for automated guardrails** — [Clean Architecture in the Age of AI (dev.to)](https://dev.to/uxter/clean-architecture-in-the-age-of-ai-preventing-architectural-liquefaction-5d8d)
 - **Enforcing Clean Architecture via tooling** — [Enforce Clean Architecture in TypeScript with fresh-onion (dev.to)](https://dev.to/remojansen/enforce-clean-architecture-in-your-typescript-projects-with-fresh-onion-45pi)
+- **Agentic code review patterns** — [Agentic Code Review (Addy Osmani)](https://addyosmani.com/blog/agentic-code-review/)
+
+---
+
+## `security-reviewer`
+
+**What it does.** A **read-only** security auditor (`tools: Read, Glob, Grep` — no `Edit`, `Write`,
+or `Bash`), built as the security-focused sibling of `architecture-reviewer`: same read-only
+independence, same mandatory-grounding-docs-first method, same named-rule-with-citation discipline,
+same severity/gate table. It closes the gap where the pipeline's only security coverage was the
+generic `security` skill routed inline by `pr-self-review` alongside every other skill — this agent
+gives security its own dedicated, rigorous pass instead. Given a diff or file set, it reads
+`CLAUDE.md`, `server/CLAUDE.md` (secrets rule), `reviewer-core/CLAUDE.md` (`INJECTION_GUARD`), and —
+deliberately — the *product's own* `docs/agent-prompts/security-reviewer.md`, reusing its proven OWASP
+taxonomy and lethal-trifecta definition rather than re-deriving one. It then checks eight named rules
+(secrets, injection, authz, SSRF, `INJECTION_GUARD` integrity, lethal trifecta, grounding-gate bypass,
+secret/error leakage), requiring a concrete exploit path for every finding — the mechanism the
+research below identifies as the single biggest lever against false positives. Standalone and
+manually invoked, exactly like `architecture-reviewer`: it is **not** wired into `pr-self-review`.
+
+**Based on:**
+
+- **Reuses this repo's own product-level security taxonomy and rigor** — `docs/agent-prompts/security-reviewer.md` (OWASP taxonomy, concrete-exploit-path requirement, lethal-trifecta definition, anti-inflation rule)
+- **`description` as the routing trigger, read-only for review independence** — [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents), [Best practices for Claude Code subagents (PubNub)](https://www.pubnub.com/blog/best-practices-for-claude-code-sub-agents/) — same basis as `architecture-reviewer`
+- **Concrete exploit path as the primary lever against false positives** — QASecClaw (arXiv 2605.01885), iCodeReviewer (arXiv 2510.12186), ZeroFalse (arXiv 2510.02534)
 - **Agentic code review patterns** — [Agentic Code Review (Addy Osmani)](https://addyosmani.com/blog/agentic-code-review/)
 
 ---
