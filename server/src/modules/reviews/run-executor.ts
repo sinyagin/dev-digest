@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { Intent, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import * as schema from '../../db/schema.js';
@@ -110,7 +110,7 @@ export class ReviewRunExecutor {
     let intentBlock: string | undefined;
     try {
       // Prefer the stored intent (avoids an LLM call when already computed).
-      let intent = await this.repo.getIntent(pull.id);
+      let intent: Intent | undefined = await this.repo.getIntent(pull.id);
       if (!intent) {
         // Pass the run's pino logger so the reference resolver + classifier
         // emit which specs were resolved + the assembled prompt (server logs).

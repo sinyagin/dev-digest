@@ -41,6 +41,7 @@
     "viewOnGitHub": "View on GitHub",
     "postedToGitHub": "Posts to GitHub immediately",
     "outdatedTitle": "{count} comment(s) on older revisions",
+    "unanchoredFindingsTitle": "{count} finding(s) not on the current diff",
     "lineLabel": {
       "blocker": "blocker",
       "warning": "warning",

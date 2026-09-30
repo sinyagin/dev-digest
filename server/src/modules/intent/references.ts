@@ -39,6 +39,22 @@ export interface ResolvedReference {
   content: string;
 }
 
+export interface UnresolvedReference {
+  kind: ParsedRefKind;
+  /** Human-readable source label (path, issue URL, or URL) — best-effort. */
+  source: string;
+  /** Short, bounded explanation of why this reference could not be resolved. */
+  reason: string;
+}
+
+/** Bound on `UnresolvedReference.reason` — never carry a stack trace. */
+const MAX_REASON_LEN = 300;
+
+function toReason(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.length > MAX_REASON_LEN ? msg.slice(0, MAX_REASON_LEN) + '…' : msg;
+}
+
 // ---- Constants ------------------------------------------------------------
 
 /** Known doc-root directories that may contain repo-relative doc paths. */
@@ -231,36 +247,54 @@ export interface ResolveRefsDeps {
 /**
  * Resolve parsed references to their content, best-effort.
  *
- * - Each fetch is wrapped in try/catch → errors skip that ref silently.
+ * - Each fetch is wrapped in try/catch — a failure never throws out of this
+ *   function, but IS recorded (kind, source, reason) in `unresolved` instead
+ *   of being dropped silently, so callers can see what context is missing.
  * - Content accumulates up to `budgetBytes`; the item that exceeds it is truncated
- *   with `\n…[truncated]` and logged; further refs are skipped.
+ *   with `\n…[truncated]` and logged; further refs are recorded as unresolved.
  * - Never throws out of this function.
  */
 export async function resolveReferences(
   refs: ParsedRef[],
   deps: ResolveRefsDeps,
-): Promise<ResolvedReference[]> {
+): Promise<{ resolved: ResolvedReference[]; unresolved: UnresolvedReference[] }> {
   const { repoRef, git, github, webFetch, logger, budgetBytes = DEFAULT_BUDGET_BYTES } = deps;
 
   const resolved: ResolvedReference[] = [];
+  const unresolved: UnresolvedReference[] = [];
   let accumulatedBytes = 0;
   let budgetExceeded = false;
 
+  function markUnresolved(kind: ParsedRefKind, source: string, reason: string): void {
+    unresolved.push({ kind, source, reason });
+    logger?.warn(
+      { kind, source, reason },
+      `intent:references: could not resolve ${kind} reference: ${source}`,
+    );
+  }
+
   for (const ref of refs) {
-    if (budgetExceeded) break;
+    if (budgetExceeded) {
+      const source = ref.path ?? ref.url ?? ref.raw;
+      markUnresolved(ref.kind, source, 'skipped: content budget exceeded');
+      continue;
+    }
+
+    let source: string = ref.raw;
 
     try {
       let content: string | null = null;
-      let source: string = ref.raw;
 
       if (ref.kind === 'repo-file') {
         const path = ref.path!;
-        // Re-validate path before reading — second security gate.
-        if (!reValidateDocPath(path)) continue;
-        content = await git.readFile(repoRef, path);
         source = path;
+        // Re-validate path before reading — second security gate.
+        if (!reValidateDocPath(path)) {
+          markUnresolved(ref.kind, source, 'path failed security re-validation');
+          continue;
+        }
+        content = await git.readFile(repoRef, path);
       } else if (ref.kind === 'github') {
-        if (!github) continue;
         const n = ref.issueNumber!;
         const targetRef: RepoRef =
           ref.targetOwner && ref.targetRepo
@@ -271,23 +305,35 @@ export async function resolveReferences(
             ? `https://github.com/${ref.targetOwner}/${ref.targetRepo}/issues/${n}`
             : `https://github.com/${repoRef.owner}/${repoRef.name}/issues/${n}`;
         source = issueUrl;
+        if (!github) {
+          markUnresolved(ref.kind, source, 'no GitHub credentials configured');
+          continue;
+        }
         let issue: { title: string; body?: string | null } | null = null;
         try {
           issue = await github.getIssue(targetRef, n);
-        } catch {
+        } catch (issueErr) {
           // Fall back to PR if issue fetch fails.
           try {
             const pr = await github.getPullRequest(targetRef, n);
             issue = { title: pr.title, body: pr.body };
-          } catch {
+          } catch (prErr) {
+            markUnresolved(
+              ref.kind,
+              source,
+              `issue fetch failed (${toReason(issueErr)}); PR fetch also failed (${toReason(prErr)})`,
+            );
             continue;
           }
         }
         content = `${issue.title}\n\n${issue.body ?? ''}`.trim();
       } else if (ref.kind === 'url') {
-        if (!webFetch) continue;
         const url = ref.url!;
         source = url;
+        if (!webFetch) {
+          markUnresolved(ref.kind, source, 'external fetch disabled');
+          continue;
+        }
         content = await webFetch.fetch(url);
       }
 
@@ -299,8 +345,9 @@ export async function resolveReferences(
         // Truncate to fit remaining budget.
         const remainingBytes = budgetBytes - accumulatedBytes;
         if (remainingBytes <= 0) {
+          markUnresolved(ref.kind, source, 'skipped: content budget exceeded');
           budgetExceeded = true;
-          break;
+          continue;
         }
         const truncated = content.slice(0, remainingBytes) + '\n…[truncated]';
         logger?.info(
@@ -314,7 +361,7 @@ export async function resolveReferences(
         resolved.push({ kind: ref.kind, source, content: truncated });
         accumulatedBytes = budgetBytes; // mark budget as consumed
         budgetExceeded = true;
-        break;
+        continue;
       }
 
       logger?.info(
@@ -323,10 +370,10 @@ export async function resolveReferences(
       );
       accumulatedBytes += contentBytes;
       resolved.push({ kind: ref.kind, source, content });
-    } catch {
-      // Best-effort: skip this ref silently on any error.
+    } catch (err) {
+      markUnresolved(ref.kind, source, toReason(err));
     }
   }
 
-  return resolved;
+  return { resolved, unresolved };
 }

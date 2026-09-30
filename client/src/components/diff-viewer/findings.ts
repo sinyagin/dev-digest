@@ -6,28 +6,35 @@ import type { FindingActionKind, FindingRecord } from "@devdigest/shared";
 import type { Line } from "./helpers";
 
 /** Findings are always grounded to the new/right side of the diff (the
-   citation gate requires a line that appears in the diff), so unlike
-   `keysForLine`'s LEFT/RIGHT split, only `ln.newNo` is ever matched — a
-   plain numeric key is enough. Groups a file's findings by exact
-   `start_line`, keeping only lines actually rendered in this patch; a
-   finding whose start_line has no matching rendered line is dropped (should
-   be rare/impossible since findings are diff-grounded server-side). */
-export function matchFindingsToLines(
+   citation gate requires a line that appears in the diff at review time), so
+   unlike `keysForLine`'s LEFT/RIGHT split, only `ln.newNo` is ever matched —
+   a plain numeric key is enough. Groups a file's findings by exact
+   `start_line`, keyed to lines actually rendered in *this* patch; the
+   currently-displayed diff can drift from the one a finding was grounded
+   against (e.g. new commits landed after the review ran), so a finding
+   whose start_line has no matching rendered line is returned separately as
+   `unanchored` rather than dropped — mirrors `partitionThreads` for
+   outdated comment threads. */
+export function partitionFindingsToLines(
   findings: FindingRecord[],
   lines: Line[],
-): Map<number, FindingRecord[]> {
+): { byLine: Map<number, FindingRecord[]>; unanchored: FindingRecord[] } {
   const renderedNewNos = new Set<number>();
   for (const ln of lines) {
     if ((ln.kind === "add" || ln.kind === "ctx") && ln.newNo != null) renderedNewNos.add(ln.newNo);
   }
   const byLine = new Map<number, FindingRecord[]>();
+  const unanchored: FindingRecord[] = [];
   for (const f of findings) {
-    if (!renderedNewNos.has(f.start_line)) continue;
+    if (!renderedNewNos.has(f.start_line)) {
+      unanchored.push(f);
+      continue;
+    }
     const list = byLine.get(f.start_line) ?? [];
     list.push(f);
     byLine.set(f.start_line, list);
   }
-  return byLine;
+  return { byLine, unanchored };
 }
 
 /** Severity → CSS colour token for the code-line's left border strip.

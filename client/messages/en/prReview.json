@@ -126,6 +126,7 @@
     "recomputeAriaLabel": "Recompute PR intent",
     "inScopeLabel": "In scope",
     "outOfScopeLabel": "Out of scope",
+    "contextGapsLabel": "Context gaps",
     "error": "Could not load intent. Click Recompute to try again."
   }
 }

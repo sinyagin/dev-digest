@@ -15,10 +15,11 @@ import {
   type CommentThread,
   type DiffCommentApi,
 } from "../comments";
-import { matchFindingsToLines, type DiffFindingApi } from "../findings";
+import { partitionFindingsToLines, type DiffFindingApi } from "../findings";
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
+import { UnanchoredFindings } from "../UnanchoredFindings";
 
 /** Threads anchored to a given parsed line (RIGHT=new, LEFT=old). */
 function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): CommentThread[] {
@@ -50,8 +51,8 @@ export function FileCard({
   );
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
 
-  const findingsByLine = React.useMemo(
-    () => matchFindingsToLines(findingApi?.findingsForFile(file.path) ?? [], lines),
+  const { byLine: findingsByLine, unanchored: unanchoredFindings } = React.useMemo(
+    () => partitionFindingsToLines(findingApi?.findingsForFile(file.path) ?? [], lines),
     [findingApi, file.path, lines],
   );
 
@@ -121,6 +122,9 @@ export function FileCard({
             ))
           )}
           {commenting && commenting.showComments && <OutdatedComments threads={outdated} />}
+          {findingApi && unanchoredFindings.length > 0 && (
+            <UnanchoredFindings findings={unanchoredFindings} findingApi={findingApi} />
+          )}
         </div>
       )}
     </div>

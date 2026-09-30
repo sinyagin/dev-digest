@@ -74,8 +74,8 @@ export class IntentService {
     diff: UnifiedDiff,
   ): Promise<Intent> {
     const record = await this.compute(workspaceId, pull.id, diff);
-    const { pr_id: _pr_id, ...intent } = record;
-    return intent as Intent;
+    const { pr_id: _pr_id, context_gaps: _contextGaps, ...intent } = record;
+    return intent;
   }
 
   // ---- private shared orchestration -----------------------------------------
@@ -109,18 +109,22 @@ export class IntentService {
 
     // 7. Parse references from the PR body + resolve them best-effort.
     const parsedRefs = parseReferences(pull.body, repoRef);
-    const references = await resolveReferences(parsedRefs, {
-      repoRef,
-      git: this.container.git,
-      github,
-      webFetch,
-      logger: this.logger,
-    });
+    const { resolved: references, unresolved: contextGaps } = await resolveReferences(
+      parsedRefs,
+      {
+        repoRef,
+        git: this.container.git,
+        github,
+        webFetch,
+        logger: this.logger,
+      },
+    );
 
     // Verification signal: surface exactly which references were found in the PR
-    // body and which were actually resolved into the classifier input. An empty
-    // `resolved` array here means NO spec/plan reached the model — the intent was
-    // derived from title + file list + hunk headers alone.
+    // body, which were resolved into the classifier input, and which were not
+    // (and why) — an unresolved reference means the intent may be missing
+    // context (e.g. a dead link or an issue we couldn't fetch), not just that
+    // NO spec/plan reached the model when `resolved` is empty.
     this.logger?.info(
       {
         prId,
@@ -131,8 +135,9 @@ export class IntentService {
           url: parsedRefs.filter((r) => r.kind === 'url').length,
         },
         resolved: references.map((r) => ({ kind: r.kind, source: r.source })),
+        unresolved: contextGaps,
       },
-      `intent: parsed ${parsedRefs.length} reference(s) from PR body, resolved ${references.length}`,
+      `intent: parsed ${parsedRefs.length} reference(s) from PR body, resolved ${references.length}, unresolved ${contextGaps.length}`,
     );
 
     // 8. Extract the first linked issue as a dedicated `issue` parameter for
@@ -183,8 +188,9 @@ export class IntentService {
       logger: this.logger,
     });
 
-    // 11. Persist + return.
-    await this.repo.upsertIntent(prId, intent);
-    return { ...intent, pr_id: prId };
+    // 11. Persist + return, including the context gaps so it's visible what
+    //     this intent was (and wasn't) built on.
+    await this.repo.upsertIntent(prId, intent, contextGaps);
+    return { ...intent, pr_id: prId, context_gaps: contextGaps };
   }
 }

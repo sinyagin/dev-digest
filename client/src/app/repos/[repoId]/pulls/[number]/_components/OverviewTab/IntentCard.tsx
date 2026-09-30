@@ -124,6 +124,39 @@ export function IntentCard({ prId }: IntentCardProps) {
               </ul>
             </div>
           )}
+
+          {/* Context gaps: references in the PR description that couldn't be
+              resolved — so it's visible what this intent was NOT built on. */}
+          {data.context_gaps.length > 0 && (
+            <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                  margin: "0 0 6px 0",
+                }}
+              >
+                {t("intent.contextGapsLabel")}
+              </p>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {data.context_gaps.map((gap, i) => (
+                  <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-secondary)" }}>
+                    <Icon.AlertTriangle
+                      size={14}
+                      style={{ color: "var(--warn)", flexShrink: 0, marginTop: 2 }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {gap.source} — {gap.reason}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </Card>
