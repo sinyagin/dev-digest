@@ -45,6 +45,9 @@ export const findings = pgTable('findings', {
   dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
 });
 
+/** Mirrors the shared `ContextGap` contract — kept structurally in sync, not imported (schema layer is DB-only). */
+type ContextGapRow = { kind: 'repo-file' | 'github' | 'url'; source: string; reason: string };
+
 export const prIntent = pgTable('pr_intent', {
   prId: uuid('pr_id')
     .primaryKey()
@@ -52,6 +55,7 @@ export const prIntent = pgTable('pr_intent', {
   intent: text('intent').notNull(),
   inScope: jsonb('in_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   outOfScope: jsonb('out_of_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  contextGaps: jsonb('context_gaps').$type<ContextGapRow[]>().notNull().default(sql`'[]'::jsonb`),
 });
 
 export const prBrief = pgTable('pr_brief', {

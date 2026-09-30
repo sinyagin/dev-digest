@@ -3,6 +3,8 @@ import {
   Review,
   Finding,
   Intent,
+  ContextGap,
+  PrIntentRecord,
   BlastRadius,
   Risks,
   PrHistory,
@@ -102,6 +104,26 @@ describe('AI contracts parse fixtures', () => {
         ],
       }),
     ).not.toThrow();
+  });
+
+  it('ContextGap / PrIntentRecord round-trip context gaps', () => {
+    expect(() =>
+      ContextGap.parse({ kind: 'url', source: 'https://example.com/spec', reason: 'URL returned HTTP 404' }),
+    ).not.toThrow();
+    const record = PrIntentRecord.parse({
+      intent: 'x',
+      in_scope: ['a'],
+      out_of_scope: ['b'],
+      pr_id: 'pr1',
+      context_gaps: [
+        { kind: 'github', source: 'https://github.com/o/r/issues/1', reason: 'issue fetch failed (404)' },
+      ],
+    });
+    expect(record.context_gaps).toHaveLength(1);
+    // context_gaps defaults to [] when omitted (older stored rows / partial payloads).
+    expect(PrIntentRecord.parse({ intent: 'x', in_scope: [], out_of_scope: [], pr_id: 'pr1' }).context_gaps).toEqual(
+      [],
+    );
   });
 
   it('SmartDiff (data.jsx DIFF)', () => {

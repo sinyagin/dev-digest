@@ -13,6 +13,19 @@ export const Intent = z.object({
 });
 export type Intent = z.infer<typeof Intent>;
 
+/**
+ * A reference in the PR body (repo file, linked issue/PR, or external URL)
+ * that could not be resolved into content for the intent classifier — e.g. a
+ * dead link, a missing GitHub token, or external fetching being disabled.
+ * Deterministic bookkeeping, computed by our own code, never LLM-generated.
+ */
+export const ContextGap = z.object({
+  kind: z.enum(['repo-file', 'github', 'url']),
+  source: z.string(),
+  reason: z.string(),
+});
+export type ContextGap = z.infer<typeof ContextGap>;
+
 // ---- Blast radius ----
 export const ChangedSymbol = z.object({
   name: z.string(),
@@ -78,7 +91,7 @@ export const PrHistory = z.object({
 export type PrHistory = z.infer<typeof PrHistory>;
 
 // ---- Smart Diff ----
-export const SmartDiffRole = z.enum(['core', 'wiring', 'boilerplate']);
+export const SmartDiffRole = z.enum(['core', 'wiring', 'tests', 'docs', 'boilerplate']);
 export type SmartDiffRole = z.infer<typeof SmartDiffRole>;
 
 export const SmartDiffFile = z.object({
