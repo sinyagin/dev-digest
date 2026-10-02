@@ -52,11 +52,20 @@
   },
   "smartDiff": {
     "coreLabel": "Core",
+    "testsLabel": "Tests",
     "wiringLabel": "Wiring",
+    "docsLabel": "Docs",
     "boilerplateLabel": "Boilerplate",
+    "coreDesc": "The substance of the change — review closely",
+    "testsDesc": "Proves the change works",
+    "wiringDesc": "Hooks the core into the app",
+    "docsDesc": "Explains the change — skim",
+    "boilerplateDesc": "Generated / mechanical — skim",
+    "filesCount": "{count} files",
+    "smartOrderLabel": "Smart order",
+    "originalOrderLabel": "Original order",
     "largeTitle": "This PR is large ({lines} changed lines)",
     "largeBody": "Consider splitting it into smaller, focused PRs for easier review:",
-    "filesCount": "{count} files",
     "findingLines": "{count} finding-lines",
     "groupedByRole": "Smart Diff · grouped by role"
   },
@@ -107,5 +116,17 @@
     "goToReview": "Jump to this run’s findings below",
     "openTrace": "Open run trace & logs",
     "deleteRun": "Delete run"
+  },
+  "overview": {
+    "descriptionLabel": "Description"
+  },
+  "intent": {
+    "sectionLabel": "Intent",
+    "recompute": "Recompute",
+    "recomputeAriaLabel": "Recompute PR intent",
+    "inScopeLabel": "In scope",
+    "outOfScopeLabel": "Out of scope",
+    "contextGapsLabel": "Context gaps",
+    "error": "Could not load intent. Click Recompute to try again."
   }
 }

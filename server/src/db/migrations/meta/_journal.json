@@ -99,6 +99,13 @@
       "when": 1790056039737,
       "tag": "0013_fair_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790745009670,
+      "tag": "0014_wealthy_praxagora",
+      "breakpoints": true
     }
   ]
 }
