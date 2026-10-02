@@ -2,9 +2,9 @@
  * devdigest_get_blast_radius — map which symbols a PR changes and who calls them.
  *
  * Identify the PR via repo + pr (required). Resolves to the internal pullId,
- * then calls GET /pulls/:id/blast. Returns the changed symbols, their callers,
- * impacted HTTP endpoints, prior PRs touching the same files, and an optional
- * one-line LLM summary.
+ * then calls GET /pulls/:id/blast. Returns the changed symbols with their
+ * downstream callers/endpoints/crons, prior PRs touching the same files, and
+ * a computed summary string (no model call — counts only).
  *
  * Layer: presentation/transport. Thin — Zod-validate → resolve → fetch →
  * format. Resolution logic lives in core/resolve.

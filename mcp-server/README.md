@@ -51,7 +51,7 @@ Dependencies are already declared in `package.json`; no separate build step is r
 | `devdigest_run_agent_on_pr` | `repo: string`, `pr: number`, `agent: string` | completed: `{ verdict, score, counts, findings[] }`; timeout: `{ status:"running", run_id, message }` | NOT readOnly, NOT idempotent, openWorld |
 | `devdigest_get_findings` | `repo: string`, `pr: number`, `run_id?: string`, `response_format?: "concise"\|"detailed"`, `offset?: number`, `limit?: number` | `{ verdict, score, total, returned, offset, counts, findings[] }` | readOnly, idempotent, openWorld |
 | `devdigest_get_conventions` | `repo: string` | `{ repo, conventions: [{ rule, file, confidence, status }] }` | readOnly, idempotent, openWorld |
-| `devdigest_get_blast_radius` | `repo: string`, `pr: number` | `{ changedSymbols, callers, impactedEndpoints, priorPrs?, summary?, degraded?, reason? }` | readOnly, idempotent, openWorld |
+| `devdigest_get_blast_radius` | `repo: string`, `pr: number` | `{ changed_symbols, downstream[{symbol, callers[], endpoints_affected[], crons_affected[]}], summary, priorPrs?, degraded?, reason? }` | readOnly, idempotent, openWorld |
 
 ### Recommended call order
 
@@ -99,7 +99,7 @@ Open the Inspector UI, confirm all 5 `devdigest_*` tools appear with their input
 - `devdigest_get_conventions { repo: "owner/repo" }` → conventions list (or `isError` for an unknown repo).
 - `devdigest_run_agent_on_pr { repo, pr, agent }` → blocks, then `{ verdict, score, findings[] }`; unknown agent → `isError` with valid ids.
 - `devdigest_get_findings { repo, pr }` → concise findings; `response_format: "detailed"` for full fields.
-- `devdigest_get_blast_radius { repo, pr }` → changed symbols / callers / impacted endpoints (or `degraded:true` when the repo index isn't available yet).
+- `devdigest_get_blast_radius { repo, pr }` → changed symbols with downstream callers/endpoints/crons (or `degraded:true` when the repo index isn't available yet).
 
 ### CLI (no UI)
 

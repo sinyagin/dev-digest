@@ -122,10 +122,13 @@ export const PrBrief = z.object({
 export type PrBrief = z.infer<typeof PrBrief>;
 
 // ---- Blast Radius HTTP response (GET /pulls/:id/blast) ----
-// Note: two parallel type families exist intentionally:
-//   repo-intel/types.ts: BlastResult, BlastChangedSymbol, BlastCallerRow — INTERNAL, server only
-//   below:               BlastRadiusResult + prefixed types — HTTP CONTRACT, client + MCP
-// BlastService maps internal → contract before returning.
+// `repo-intel/types.ts`'s `BlastResult` (internal, flat, camelCase callers
+// with viaSymbol/rank) is mapped by `blast/service.ts` (via `blast/mapper.ts`)
+// into `BlastRadiusResponse` below — which IS the pre-existing `BlastRadius`
+// shape above (changed_symbols/downstream/summary), extended with
+// transport-only `degraded`/`reason`/`priorPrs`. This is not a second
+// parallel contract: `BlastRadius` was unused dead code before this feature
+// and is the intended shape for this endpoint, reused as-is.
 export const BlastDegradedReason = z.enum([
   'flag_off',
   'index_failed',
@@ -134,22 +137,6 @@ export const BlastDegradedReason = z.enum([
   'no_data',
 ]);
 export type BlastDegradedReason = z.infer<typeof BlastDegradedReason>;
-
-export const BlastChangedSymbol = z.object({
-  file: z.string(),
-  name: z.string(),
-  kind: z.string(),
-});
-export type BlastChangedSymbol = z.infer<typeof BlastChangedSymbol>;
-
-export const BlastCallerRow = z.object({
-  file: z.string(),
-  symbol: z.string(),
-  viaSymbol: z.string(),
-  line: z.number().int(),
-  rank: z.number().int(),
-});
-export type BlastCallerRow = z.infer<typeof BlastCallerRow>;
 
 export const PriorPr = z.object({
   id: z.string(),
@@ -160,21 +147,9 @@ export const PriorPr = z.object({
 });
 export type PriorPr = z.infer<typeof PriorPr>;
 
-export const BlastRadiusResult = z.object({
-  changedSymbols: z.array(BlastChangedSymbol),
-  callers: z.array(BlastCallerRow),
-  impactedEndpoints: z.array(z.string()),
-  factsByFile: z
-    .record(
-      z.object({
-        endpoints: z.array(z.string()),
-        crons: z.array(z.string()),
-      }),
-    )
-    .optional(),
+export const BlastRadiusResponse = BlastRadius.extend({
   degraded: z.boolean().optional(),
   reason: BlastDegradedReason.optional(),
   priorPrs: z.array(PriorPr).optional(),
-  summary: z.string().optional(),
 });
-export type BlastRadiusResult = z.infer<typeof BlastRadiusResult>;
+export type BlastRadiusResponse = z.infer<typeof BlastRadiusResponse>;

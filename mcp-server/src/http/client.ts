@@ -16,7 +16,7 @@ import type {
   ReviewRecord,
   RunTrace,
   ConventionCandidate,
-  BlastRadiusResult,
+  BlastRadiusResponse,
 } from '@devdigest/shared';
 import { config } from '../config.js';
 
@@ -110,9 +110,9 @@ export async function listConventions(repoId: string): Promise<ConventionCandida
   return request<ConventionCandidate[]>(`/repos/${encodeURIComponent(repoId)}/conventions`);
 }
 
-/** GET /pulls/:pullId/blast → BlastRadiusResult */
-export async function getBlastRadius(pullId: string): Promise<BlastRadiusResult> {
-  return request<BlastRadiusResult>(`/pulls/${encodeURIComponent(pullId)}/blast`);
+/** GET /pulls/:pullId/blast → BlastRadiusResponse */
+export async function getBlastRadius(pullId: string): Promise<BlastRadiusResponse> {
+  return request<BlastRadiusResponse>(`/pulls/${encodeURIComponent(pullId)}/blast`);
 }
 
 /** Bundled client object for dependency injection into tools and core modules. */

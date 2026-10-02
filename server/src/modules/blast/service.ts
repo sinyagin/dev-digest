@@ -1,8 +1,8 @@
 import type { Container } from '../../platform/container.js';
-import type { BlastRadiusResult } from '@devdigest/shared';
+import type { BlastRadiusResponse } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
 import { BlastRepository } from './repository.js';
-import { resolveFeatureModel } from '../settings/feature-models.js';
+import { mapBlastResult } from './mapper.js';
 
 export class BlastService {
   private readonly repo: BlastRepository;
@@ -11,7 +11,7 @@ export class BlastService {
     this.repo = new BlastRepository(container.db);
   }
 
-  async getForPr(prId: string, workspaceId: string): Promise<BlastRadiusResult> {
+  async getForPr(prId: string, workspaceId: string): Promise<BlastRadiusResponse> {
     const { pr, repo } = await this.repo.resolvePrAndRepo(prId, workspaceId);
     if (!pr) throw new NotFoundError('Pull request not found');
     if (!repo) throw new NotFoundError('Repo not found');
@@ -20,15 +20,16 @@ export class BlastService {
 
     if (changedFiles.length === 0) {
       return {
-        changedSymbols: [],
-        callers: [],
-        impactedEndpoints: [],
+        changed_symbols: [],
+        downstream: [],
+        summary: 'No changed files to analyze.',
         degraded: true,
         reason: 'no_data',
       };
     }
 
     const blastResult = await this.container.repoIntel.getBlastRadius(repo.id, changedFiles);
+    const mapped = mapBlastResult(blastResult);
 
     const priorPrsRaw = await this.repo.findPriorPrsTouchingSameFiles(
       repo.id,
@@ -44,34 +45,10 @@ export class BlastService {
       status: p.status,
     }));
 
-    let summary: string | undefined;
-    try {
-      const { provider, model } = await resolveFeatureModel(
-        this.container,
-        workspaceId,
-        'review_intent',
-      );
-      const llm = await this.container.llm(provider);
-      const result = await llm.complete({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: 'You summarize code impact maps in one concise sentence.',
-          },
-          {
-            role: 'user',
-            content: `Blast radius: ${blastResult.changedSymbols.map((s) => s.name).join(', ')} changed. ${blastResult.callers.length} callers, ${blastResult.impactedEndpoints.length} endpoints affected. Summarize in one sentence.`,
-          },
-        ],
-        maxTokens: 150,
-        temperature: 0.2,
-      });
-      summary = result.text.trim();
-    } catch {
-      // LLM failure must not block the response
-    }
-
-    return { ...blastResult, priorPrs, summary };
+    return {
+      ...mapped,
+      ...(blastResult.degraded ? { degraded: true, reason: blastResult.reason } : {}),
+      priorPrs,
+    };
   }
 }
