@@ -57,6 +57,8 @@ boot — set via `server/.env` or the Settings UI at runtime.
 - `scripts/` — `dev.sh` (boot everything), `e2e.sh` (hermetic e2e stack)
 - `docker-compose.yml` — the one Dockerized service (Postgres + pgvector)
 - `TESTING.md` — full test/CI strategy across all four packages
+- `WORKFLOW-INSIGHTS.md` — retrospectives on multi-agent workflow runs,
+  captured via `/workflow-insights`
 
 ## Conventions (not obvious from code)
 
