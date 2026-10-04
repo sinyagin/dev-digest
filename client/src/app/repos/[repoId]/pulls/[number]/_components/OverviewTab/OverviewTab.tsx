@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { SectionLabel } from "@devdigest/ui";
+import { Card, SectionLabel } from "@devdigest/ui";
 import { BlastRadiusCard } from "../BlastRadiusCard";
 import { s } from "./styles";
 import { IntentCard } from "./IntentCard";
@@ -20,12 +20,20 @@ export function OverviewTab({ prBody, prId, repoFullName, headSha }: OverviewTab
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {prId && <IntentCard prId={prId} />}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+          gap: 20,
+        }}
+      >
+        {prId && <IntentCard prId={prId} />}
 
-      <section>
-        <SectionLabel icon="Workflow">{tBlast("title")}</SectionLabel>
-        <BlastRadiusCard prId={prId} repoFullName={repoFullName} headSha={headSha} />
-      </section>
+        <Card pad style={{ marginBottom: 0 }}>
+          <SectionLabel icon="Workflow">{tBlast("title")}</SectionLabel>
+          <BlastRadiusCard prId={prId} repoFullName={repoFullName} headSha={headSha} />
+        </Card>
+      </div>
 
       {prBody && (
         <section>
