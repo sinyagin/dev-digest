@@ -1,0 +1,126 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for BlastRadiusCard. */
+export const s = {
+  summaryBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    flexWrap: "wrap",
+    fontSize: 13,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  summaryText: {
+    margin: 0,
+    fontSize: 13,
+    color: "var(--text-secondary)",
+    lineHeight: 1.5,
+  } satisfies CSSProperties,
+  degradedBadge: {
+    fontSize: 11,
+    fontWeight: 600,
+    padding: "2px 8px",
+    borderRadius: 999,
+    background: "var(--warn-bg)",
+    color: "var(--warn)",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  } satisfies CSSProperties,
+  symbolBlock: {
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    background: "var(--bg-elevated)",
+    padding: 12,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  } satisfies CSSProperties,
+  symbolHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  } satisfies CSSProperties,
+  symbolName: {
+    fontFamily: "var(--font-mono, monospace)",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  } satisfies CSSProperties,
+  callerCount: {
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  callerRow: {
+    paddingLeft: 12,
+    fontSize: 13,
+  } satisfies CSSProperties,
+  noCallers: {
+    paddingLeft: 12,
+    fontSize: 12,
+    color: "var(--text-muted)",
+    fontStyle: "italic",
+  } satisfies CSSProperties,
+  chipRow: {
+    display: "flex",
+    gap: 6,
+    flexWrap: "wrap",
+    paddingLeft: 12,
+    marginTop: 2,
+  } satisfies CSSProperties,
+  endpointChip: {
+    fontSize: 11,
+    fontFamily: "var(--font-mono, monospace)",
+    padding: "2px 8px",
+    borderRadius: 6,
+  } satisfies CSSProperties,
+  cronChip: {
+    fontSize: 11,
+    fontFamily: "var(--font-mono, monospace)",
+    padding: "2px 8px",
+    borderRadius: 6,
+    background: "var(--warn-bg)",
+    color: "var(--warn)",
+  } satisfies CSSProperties,
+  empty: {
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    background: "var(--bg-elevated)",
+    padding: 18,
+    fontSize: 13,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  emptyBody: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  error: {
+    fontSize: 13,
+    color: "var(--crit)",
+    padding: 12,
+  } satisfies CSSProperties,
+  priorPrsDetails: {
+    borderTop: "1px solid var(--border)",
+    paddingTop: 8,
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  priorPrRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 12,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  priorPrTitle: {
+    flex: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+  priorPrDate: {
+    color: "var(--text-muted)",
+    fontSize: 11,
+    flexShrink: 0,
+  } satisfies CSSProperties,
+} as const;

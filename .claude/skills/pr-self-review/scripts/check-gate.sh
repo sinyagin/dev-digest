@@ -15,9 +15,23 @@
 
 set -euo pipefail
 
-# Drain stdin (Claude Code pipes hook-event JSON here); unused — the `if`
-# matcher in settings.json already filtered which commands reach us.
-cat >/dev/null || true
+# Read the hook-event JSON Claude Code pipes on stdin and extract the actual
+# command. The `if` matcher in settings.json is meant to scope this hook to
+# `git push` / `gh pr create` / `gh pr merge` already, but can't be relied on
+# alone (observed: this script still ran for e.g. `gh auth status`) — so we
+# self-filter here too, before doing anything else.
+HOOK_INPUT="$(cat)"
+
+if command -v jq >/dev/null 2>&1; then
+  INPUT_COMMAND="$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.command // empty')"
+else
+  INPUT_COMMAND="$(printf '%s' "$HOOK_INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*"command"[[:space:]]*:[[:space:]]*"([^"]*)"/\1/')"
+fi
+
+case "$INPUT_COMMAND" in
+  "git push"|"git push "*|"gh pr create"|"gh pr create "*|"gh pr merge"|"gh pr merge "*) ;;
+  *) exit 0 ;;
+esac
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}"
 STATE_FILE="$ROOT/.claude/skills/pr-self-review/.state/last-review.json"

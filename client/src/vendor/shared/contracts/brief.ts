@@ -133,3 +133,36 @@ export const PrBrief = z.object({
   history: PrHistory,
 });
 export type PrBrief = z.infer<typeof PrBrief>;
+
+// ---- Blast Radius HTTP response (GET /pulls/:id/blast) ----
+// `repo-intel/types.ts`'s `BlastResult` (internal, flat, camelCase callers
+// with viaSymbol/rank) is mapped by `blast/service.ts` (via `blast/mapper.ts`)
+// into `BlastRadiusResponse` below — which IS the pre-existing `BlastRadius`
+// shape above (changed_symbols/downstream/summary), extended with
+// transport-only `degraded`/`reason`/`priorPrs`. This is not a second
+// parallel contract: `BlastRadius` was unused dead code before this feature
+// and is the intended shape for this endpoint, reused as-is.
+export const BlastDegradedReason = z.enum([
+  'flag_off',
+  'index_failed',
+  'index_partial',
+  'repo_too_large',
+  'no_data',
+]);
+export type BlastDegradedReason = z.infer<typeof BlastDegradedReason>;
+
+export const PriorPr = z.object({
+  id: z.string(),
+  number: z.number(),
+  title: z.string(),
+  openedAt: z.string().nullable(),
+  status: z.string(),
+});
+export type PriorPr = z.infer<typeof PriorPr>;
+
+export const BlastRadiusResponse = BlastRadius.extend({
+  degraded: z.boolean().optional(),
+  reason: BlastDegradedReason.optional(),
+  priorPrs: z.array(PriorPr).optional(),
+});
+export type BlastRadiusResponse = z.infer<typeof BlastRadiusResponse>;
