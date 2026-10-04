@@ -50,7 +50,7 @@ do not edit those.
 
 1. **Read local insights first (before any code).** For every module in your `Owned paths`, read
    `<module>/INSIGHTS.md`. Read only your module(s) — not the whole repo. Also honour the
-   `Known gotchas` the planner wrote into your task.
+   `Known gotchas` the implementation-planner wrote into your task.
 
 2. **Apply the skill set for your `Type`.** Everything is preloaded; lean on the relevant emphasis:
    - **backend** → fastify-best-practices · drizzle-orm-patterns · postgresql-table-design · zod ·

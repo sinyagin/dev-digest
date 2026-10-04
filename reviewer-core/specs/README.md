@@ -1,7 +1,6 @@
 # reviewer-core/specs
 
-Feature and design specs for work landing in `@devdigest/reviewer-core` —
-written before (or alongside) an implementation.
-
-Empty for now — add one file per spec (e.g. `map-reduce-large-diffs.md`,
-`multi-agent-reduce.md`).
+Moved. Specs for `@devdigest/reviewer-core` now live in the repo-wide
+[`specs/reviewer-core/`](../../specs/reviewer-core/) — see
+[`specs/README.md`](../../specs/README.md) for the Spec-Driven Development
+conventions.

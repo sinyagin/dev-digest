@@ -2,7 +2,7 @@
 
 Pure review engine: diff → prompt → LLM → grounded findings. No DB, GitHub, or
 FS. Full docs: [`README.md`](README.md). Deeper notes: [`docs/`](docs/) ·
-[`specs/`](specs/) · [`INSIGHTS.md`](INSIGHTS.md).
+[`specs/`](../specs/reviewer-core/) · [`INSIGHTS.md`](INSIGHTS.md).
 
 ## Stack
 

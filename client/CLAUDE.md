@@ -2,7 +2,7 @@
 
 Next.js studio UI: import repos, browse PRs, run/read reviews, author agents.
 Full docs: [`README.md`](README.md). Deeper notes: [`docs/`](docs/) ·
-[`specs/`](specs/) · [`INSIGHTS.md`](INSIGHTS.md).
+[`specs/`](../specs/client/) · [`INSIGHTS.md`](INSIGHTS.md).
 
 ## Stack
 

@@ -5,9 +5,10 @@ Local-first AI pull-request review — a course starter template. Full picture:
 
 ## Before answering
 
-Always search the relevant package's `docs/`, `specs/`, and `INSIGHTS.md` for
-what the user asks about FIRST — these are curated and may already answer it
-— then read code.
+Always search the relevant package's `docs/` and `INSIGHTS.md`, plus the
+repo-root [`specs/<package>/`](specs/) for that package, for what the user
+asks about FIRST — these are curated and may already answer it — then read
+code.
 
 ## Before ending a session
 
@@ -51,6 +52,8 @@ boot — set via `server/.env` or the Settings UI at runtime.
   `server`, not its own package)
 - `docs/agent-prompts/` — built-in reviewer agent prompt docs, mirrored in
   `server/src/db/seed-prompts.ts`
+- [`specs/`](specs/) — Spec-Driven Development specs (one subfolder per
+  package, plus `cross-module/`), authored by the `spec-creator` subagent
 - `scripts/` — `dev.sh` (boot everything), `e2e.sh` (hermetic e2e stack)
 - `docker-compose.yml` — the one Dockerized service (Postgres + pgvector)
 - `TESTING.md` — full test/CI strategy across all four packages

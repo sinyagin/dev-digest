@@ -3,11 +3,11 @@
 Deterministic browser flows over the web app, driven by Vercel agent-browser
 (native Rust + CDP CLI). No Playwright, no LLM, no API key. Full docs:
 [`README.md`](README.md). Deeper notes: [`docs/`](docs/) ·
-[`docs/specs/`](docs/specs/) · [`INSIGHTS.md`](INSIGHTS.md).
+[`specs/`](../specs/e2e/) · [`INSIGHTS.md`](INSIGHTS.md).
 
 > **Naming note:** `specs/` at this package's top level already means
 > something else here — see Map below. Design/feature specs for this package
-> live at `docs/specs/` instead.
+> live at the repo-root [`specs/e2e/`](../specs/e2e/) instead.
 
 ## Stack
 
@@ -29,7 +29,8 @@ npm test                      # against your own ./scripts/dev.sh stack —
 
 - `specs/*.flow.json` — **test-flow specs**: ordered lists of agent-browser
   commands, one file per user journey (`01-app-boot`, `02-repo-pulls-detail`,
-  …). Not the same thing as "design specs" — see the naming note above.
+  …). Not the same thing as the repo-root `specs/e2e/` design specs — see
+  the naming note above.
 - `run.ts` — executes a flow spec against one shared browser session
 - `agent-browser.json` — CLI config
 - `lib/` — runner helpers
