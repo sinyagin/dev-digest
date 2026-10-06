@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { Icon } from "../icons";
 
 /** REAL controlled checkbox (styled). */
@@ -13,6 +13,9 @@ export function Checkbox({
   label?: React.ReactNode;
   disabled?: boolean;
 }) {
+  const labelId = useId();
+  const hasLabel = label !== undefined && label !== null;
+
   return (
     <label
       style={{
@@ -29,6 +32,7 @@ export function Checkbox({
         role="checkbox"
         aria-checked={checked}
         aria-disabled={disabled}
+        aria-labelledby={hasLabel ? labelId : undefined}
         disabled={disabled}
         onClick={() => onChange?.(!checked)}
         style={{
@@ -44,7 +48,7 @@ export function Checkbox({
       >
         {checked && <Icon.Check size={11} style={{ color: "#fff" }} />}
       </button>
-      {label}
+      {hasLabel && <span id={labelId}>{label}</span>}
     </label>
   );
 }

@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@devdigest/ui";
 import { formatRunCost } from "@/components/run-cost-badge";
 import type { RunTrace, FindingRecord } from "@devdigest/shared";
-import { PROMPT_COLORS } from "../../constants";
+import { PROMPT_COLORS, SPECS_STATUS_COLORS } from "../../constants";
 import { formatSeconds, formatTokens } from "../../helpers";
 import { s } from "../../styles";
 import { TraceSection } from "../TraceSection";
@@ -19,6 +19,10 @@ import { Row, Stat } from "../atoms";
 export function TraceBody({ trace, findings }: { trace: RunTrace; findings: FindingRecord[] }) {
   const t = useTranslations("runs");
   const stats = trace.stats;
+  // specs_missing/specs_truncated are optional (absent on traces recorded
+  // before these fields existed) — never call .length on undefined.
+  const specsMissing = trace.specs_missing ?? [];
+  const specsTruncated = trace.specs_truncated ?? [];
   return (
     <>
       <TraceSection icon="Settings" title={t("trace.configuration")}>
@@ -43,6 +47,32 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
               ) : (
                 trace.specs_read.map((sp, i) => (
                   <span key={i} className="mono" style={s.spec}>
+                    {sp}
+                  </span>
+                ))
+              )}
+            </div>
+          </Row>
+          <Row label={t("trace.config.specsMissing")}>
+            <div style={s.specsWrap}>
+              {specsMissing.length === 0 ? (
+                <span style={s.specsNone}>{t("trace.config.none")}</span>
+              ) : (
+                specsMissing.map((sp, i) => (
+                  <span key={i} className="mono" style={s.specStatus(SPECS_STATUS_COLORS.missing)}>
+                    {sp}
+                  </span>
+                ))
+              )}
+            </div>
+          </Row>
+          <Row label={t("trace.config.specsTruncated")}>
+            <div style={s.specsWrap}>
+              {specsTruncated.length === 0 ? (
+                <span style={s.specsNone}>{t("trace.config.none")}</span>
+              ) : (
+                specsTruncated.map((sp, i) => (
+                  <span key={i} className="mono" style={s.specStatus(SPECS_STATUS_COLORS.truncated)}>
                     {sp}
                   </span>
                 ))

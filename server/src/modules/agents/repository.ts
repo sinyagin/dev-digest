@@ -246,4 +246,48 @@ export class AgentsRepository {
         );
     });
   }
+
+  // ---- context_documents (jsonb column; Project Context feature) ---------
+
+  /** The project-context document paths attached to an agent. `null` column coalesces to `[]`. */
+  async contextDocumentsFor(agentId: string): Promise<string[]> {
+    const [row] = await this.db
+      .select({ contextDocuments: t.agents.contextDocuments })
+      .from(t.agents)
+      .where(eq(t.agents.id, agentId));
+    return row?.contextDocuments ?? [];
+  }
+
+  /**
+   * Replace the agent's context_documents list in one atomic UPDATE. Deliberately
+   * NOT a transaction/read-modify-write (see server/INSIGHTS.md re: agent_skills'
+   * non-atomic delete-then-insert race) — a single statement can't interleave into
+   * a partial/duplicated result under concurrent saves. Does not touch `version`
+   * or write an `agent_versions` row: attaching context docs is not a config change.
+   */
+  async setContextDocuments(agentId: string, paths: string[]): Promise<void> {
+    await this.db.update(t.agents).set({ contextDocuments: paths }).where(eq(t.agents.id, agentId));
+  }
+
+  /**
+   * Workspace-scoped count of how many agents reference each exact context-document
+   * path, for the "used by N agents" badge (AC-11). Counts each path once per agent
+   * even if duplicated within that agent's own list. Never aggregates across other
+   * workspaces (tenant isolation).
+   */
+  async countAgentsByContextPath(workspaceId: string): Promise<Map<string, number>> {
+    const rows = await this.db
+      .select({ contextDocuments: t.agents.contextDocuments })
+      .from(t.agents)
+      .where(eq(t.agents.workspaceId, workspaceId));
+
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const uniquePaths = new Set(row.contextDocuments ?? []);
+      for (const path of uniquePaths) {
+        counts.set(path, (counts.get(path) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }
 }

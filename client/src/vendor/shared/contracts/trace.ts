@@ -84,6 +84,12 @@ export const RunTrace = z.object({
   raw_output: z.string(),
   memory_pulled: z.array(MemoryPulled),
   specs_read: z.array(z.string()),
+  /** Spec paths referenced by the repo's conventions/config but not found in the
+      clone; optional — absent on traces recorded before this field existed. */
+  specs_missing: z.array(z.string()).optional(),
+  /** Spec paths that were read but truncated to fit the prompt budget; optional —
+      absent on traces recorded before this field existed. */
+  specs_truncated: z.array(z.string()).optional(),
   log: z.array(RunLogLine),
 });
 export type RunTrace = z.infer<typeof RunTrace>;

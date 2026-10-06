@@ -12,8 +12,9 @@ import { SkillCard } from "../_components/SkillCard";
 import { SkillEditor } from "./_components/SkillEditor";
 import { useSkills, useSkill, useUpdateSkill } from "../../../lib/hooks/skills";
 import { ApiError } from "../../../lib/api";
+import { TABS } from "./_components/SkillEditor/constants";
 
-const VALID_TABS = ["config", "preview", "evals", "stats", "versions"];
+const VALID_TABS = TABS.map((t) => t.key);
 
 export default function SkillEditorPage() {
   const t = useTranslations("skills");

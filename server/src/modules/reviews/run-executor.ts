@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { Intent, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { Intent, Provider, RepoRef, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import * as schema from '../../db/schema.js';
@@ -9,6 +9,8 @@ import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 import { IntentService } from '../intent/service.js';
+import { resolveProjectContext } from '../context/resolver.js';
+import { readDocument } from '../context/clone-docs.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
 export class RunCancelledError extends Error {
@@ -235,6 +237,44 @@ export class ReviewRunExecutor {
           : 'No skills linked/enabled for this agent',
       );
 
+      // Project context (SPEC-01-project-context, T13) — resolve the agent's
+      // own attached docs + the enabled skills' attached docs (in their
+      // existing load order) against this run's repo clone. Best-effort: ANY
+      // failure here (including resolveProjectContext itself throwing) must
+      // NEVER fail the run — the run continues with specs effectively absent.
+      let specs: string[] = [];
+      let specsRead: string[] = [];
+      let specsMissing: string[] = [];
+      let specsTruncated: string[] = [];
+      try {
+        const repoRef: RepoRef = { owner: repo.owner, name: repo.name };
+        const cloneRoot = this.container.git.clonePathFor(repoRef);
+        const agentPaths = await this.agents.contextDocumentsFor(agent.id);
+        const skillPathLists = enabledSkills.map((l) => l.skill.contextDocuments ?? []);
+        const resolved = await resolveProjectContext({
+          agentPaths,
+          skillPathLists,
+          read: (relPath) => readDocument(cloneRoot, relPath),
+        });
+        specs = resolved.specs;
+        specsRead = resolved.read;
+        specsMissing = resolved.missing;
+        specsTruncated = resolved.truncated;
+        if (specsRead.length > 0 || specsMissing.length > 0) {
+          runLog.info(
+            `project context: ${specsRead.length} doc(s) attached` +
+              (specsMissing.length ? `, ${specsMissing.length} missing/omitted` : '') +
+              (specsTruncated.length ? `, ${specsTruncated.length} truncated` : ''),
+          );
+        }
+      } catch (err) {
+        runLog.info(
+          `project context: resolution failed — continuing without specs (${(err as Error).message})`,
+        );
+        // specs/specsRead/specsMissing/specsTruncated remain empty; the run
+        // proceeds exactly as if nothing were attached (AC-25).
+      }
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -255,6 +295,12 @@ export class ReviewRunExecutor {
         // Linked + enabled skill bodies (rubric/convention/security rules).
         // assemblePrompt omits the "## Skills / rules" section when empty.
         ...(enabledSkills.length ? { skills: enabledSkills.map((l) => l.skill.body) } : {}),
+        // T13 — project-context documents (agent + enabled skills' attached
+        // specs). Passed completely raw: assemblePrompt (reviewer-core) wraps
+        // each entry via wrapUntrusted itself — do not pre-wrap here. Omitted
+        // (not `specs: []`) when nothing was resolved, so the prompt stays
+        // byte-identical to the no-attachment baseline (AC-26).
+        ...(specs.length ? { specs } : {}),
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
@@ -338,7 +384,9 @@ export class ReviewRunExecutor {
         })),
         raw_output: outcome.raw,
         memory_pulled: [],
-        specs_read: [],
+        specs_read: specsRead,
+        specs_missing: specsMissing,
+        specs_truncated: specsTruncated,
         // Persisted log = the run's FULL event buffer (incl. shared pre-work:
         // diff load + intent), not just events recorded inside this method.
         log: runLog.logFor(runId),
@@ -488,6 +536,8 @@ export class ReviewRunExecutor {
       raw_output: '',
       memory_pulled: [],
       specs_read: [],
+      specs_missing: [],
+      specs_truncated: [],
       log: this.container.runBus.buffer(runId).map((e) => ({ t: e.t, kind: e.kind, msg: e.msg })),
     };
   }

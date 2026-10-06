@@ -180,6 +180,34 @@ export class AgentsService {
   }
 
   /**
+   * Currently attached Project Context document paths for an agent.
+   * Workspace-scoped: undefined when the agent isn't in this workspace (route → 404).
+   */
+  async contextDocuments(workspaceId: string, agentId: string): Promise<string[] | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    return this.repo.contextDocumentsFor(agentId);
+  }
+
+  /**
+   * Replace the agent's attached context-document set (REPLACE-ALL — `paths` may be
+   * empty, meaning "detach everything"). Deliberately standalone from `update()`:
+   * does NOT bump `version` or write an `agent_versions` row (AC-15) — attaching
+   * context docs is not a config change. Delegates straight to the repository's
+   * single atomic jsonb UPDATE (`setContextDocuments`), not a read-modify-write.
+   */
+  async setContextDocuments(
+    workspaceId: string,
+    agentId: string,
+    paths: string[],
+  ): Promise<string[] | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    await this.repo.setContextDocuments(agentId, paths);
+    return paths;
+  }
+
+  /**
    * Dynamic model list from the provider adapter's /models. Degrades gracefully
    * to [] if the provider key is not configured (the editor still renders).
    */

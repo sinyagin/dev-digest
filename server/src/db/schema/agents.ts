@@ -32,6 +32,7 @@ export const agents = pgTable('agents', {
   enabled: boolean('enabled').notNull().default(true),
   version: integer('version').notNull().default(1),
   createdBy: uuid('created_by').references(() => users.id),
+  contextDocuments: jsonb('context_documents').$type<string[]>(),
   createdAt: now(),
 });
 

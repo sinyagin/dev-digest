@@ -20,3 +20,11 @@ export const PROMPT_COLORS = {
   callers: "var(--warn)",
   user: "var(--ok)",
 } as const;
+
+/** Configuration-panel specs-status row accent colours (missing / truncated) —
+    same "named CSS var per row kind" convention as PROMPT_COLORS, but for the
+    specs_missing/specs_truncated rows rather than prompt-assembly blocks. */
+export const SPECS_STATUS_COLORS = {
+  missing: "var(--crit)",
+  truncated: "var(--warn)",
+} as const;

@@ -1,17 +1,22 @@
 {
   "title": "Project Context",
-  "chunks": "{count} chunks",
-  "reindex": "Re-index",
-  "indexing": "Indexing…",
   "resync": "Resync",
   "resyncing": "Resyncing…",
-  "indexStatus": "Index status: {status}",
   "loadError": "Couldn’t load specs",
   "kb": "{kb}kb",
+  "tokens": "≈{count} tokens",
+  "usedByAgents": "{count, plural, one {Used by # agent} other {Used by # agents}}",
+  "bucketTag": "{bucket}",
+  "resyncWarning": "Editing here changes only your local working copy. Re-syncing this repository will discard any unsaved or uncommitted edits.",
   "empty": {
     "title": "No spec files yet",
-    "body": "Drop your PRDs, tech specs, and acceptance criteria under .devdigest/specs/. Every agent and the PR brief read them as grounding context."
+    "body": "This repository's working tree has no Markdown (.md) files yet. Add PRDs, tech specs, or acceptance criteria anywhere in the repo — the system scans the whole working tree, skipping dot-directories (like .git, .next), node_modules, and build-output/vendor directories. Every agent run can then use them as grounding context."
   },
+  "notCloned": {
+    "title": "This repository hasn't been cloned yet",
+    "body": "Once this repository is cloned locally, its Markdown documents will be discoverable here."
+  },
+  "readError": "Could not read {path} as text — the file may be binary or use an unsupported encoding.",
   "mode": {
     "preview": "preview",
     "edit": "edit"
@@ -19,6 +24,18 @@
   "editor": {
     "loadError": "Couldn’t load spec",
     "save": "Save",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "savedToast": "Saved {path} to the working tree",
+    "saveError": "Couldn’t save {path}"
+  },
+  "picker": {
+    "filterPlaceholder": "Filter by path…",
+    "filterLabel": "Filter documents by path",
+    "noMatches": "No documents match your filter.",
+    "missing": "missing",
+    "moveUp": "Move {path} up",
+    "moveDown": "Move {path} down",
+    "moved": "Moved {path} to position {position} of {total}",
+    "attachedCount": "{count} attached"
   }
 }

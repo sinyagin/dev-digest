@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { SkillSource, SkillType } from '@devdigest/shared';
+import { ContextAttachmentSet, SkillSource, SkillType } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -24,6 +24,8 @@ const VersionParams = z.object({
  *   GET    /skills/:id/versions/:version         → one body snapshot
  *   POST   /skills/:id/versions/:version/restore → restore as a NEW version
  *   POST   /skills/import                        → parse an uploaded .md/.zip (preview, no DB write)
+ *   GET    /skills/:id/context-documents         → attached project-context document paths
+ *   POST   /skills/:id/context-documents         → replace-all attached document paths (no version bump)
  */
 
 const CreateSkillBody = z.object({
@@ -124,6 +126,30 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
       const skill = await service.restoreVersion(workspaceId, req.params.id, req.params.version);
       if (!skill) throw new NotFoundError('Skill or version not found');
       return skill;
+    },
+  );
+
+  // Project-context attachments (AC-17) — standalone routes, deliberately NOT
+  // routed through PUT /skills/:id above: no version bump, no skill_versions row.
+  app.get(
+    '/skills/:id/context-documents',
+    { schema: { params: IdParams } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const paths = await service.contextDocuments(workspaceId, req.params.id);
+      if (paths === undefined) throw new NotFoundError('Skill not found');
+      return { paths };
+    },
+  );
+
+  app.post(
+    '/skills/:id/context-documents',
+    { schema: { params: IdParams, body: ContextAttachmentSet } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const paths = await service.setContextDocuments(workspaceId, req.params.id, req.body.paths);
+      if (paths === undefined) throw new NotFoundError('Skill not found');
+      return { paths };
     },
   );
 }
