@@ -20,11 +20,15 @@ export function SmartDiffViewer({
   files,
   commenting,
   findingApi,
+  focusPath,
 }: {
   smartDiff: SmartDiffResponse;
   files: PrFile[];
   commenting?: DiffCommentApi;
   findingApi?: DiffFindingApi;
+  /** Optional: forwarded to RoleGroup/FileCard to force-open and scroll a
+     specific file's card into view. */
+  focusPath?: string | null;
 }) {
   const byPath = React.useMemo(() => new Map(files.map((f) => [f.path, f])), [files]);
 
@@ -39,6 +43,7 @@ export function SmartDiffViewer({
           byPath={byPath}
           commenting={commenting}
           findingApi={findingApi}
+          focusPath={focusPath}
         />
       ))}
     </div>

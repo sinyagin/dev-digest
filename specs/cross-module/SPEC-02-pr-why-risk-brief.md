@@ -1,4 +1,4 @@
-# Spec: PR Why + Risk Brief   |   Spec ID: SPEC-02   |   Status: draft
+# Spec: PR Why + Risk Brief   |   Spec ID: SPEC-02   |   Status: approved
 Supersedes: none
 
 ## Problem & users
@@ -92,53 +92,53 @@ Affected users:
 
 1. As a reviewer opening a PR with no brief yet, I want a "Generate brief"
    action on Overview, so I can get a synthesized why+risk view on demand.
-   → AC-23
+   → AC-24
 2. As a reviewer, once generated, I want to see a short summary, Risk areas,
    and Review focus together, so I know what the PR does and where to start.
-   → AC-24
+   → AC-25
 3. As a reviewer, I want the existing Intent and Blast Radius cards to keep
    showing next to the brief, so I don't lose context I already had.
-   → AC-25
+   → AC-26
 4. As a reviewer on a PR where Intent or Blast Radius data doesn't exist (no
    row, or the PR has nothing for Blast Radius to compute), I want the brief
    to say plainly what's missing rather than quietly leave it out.
-   → AC-10, AC-11, AC-26
+   → AC-12, AC-27
 5. As a reviewer, I want each risk to show its name and the file it concerns,
    colored by how severe it is, so I can triage at a glance.
-   → AC-27, AC-28
+   → AC-28, AC-29
 6. As a reviewer on a PR with no notable risks, I want to see that stated
    plainly rather than an empty section.
-   → AC-29
+   → AC-30
 7. As a reviewer, I want Review focus to list `file:line — reason` in the
    order I should read them, so I don't have to guess where to start.
-   → AC-30, AC-31
+   → AC-31, AC-32
 8. As a reviewer, I want clicking a Review focus entry to take me straight to
    that file on the Files Changed tab, so I don't have to search for it.
-   → AC-32, AC-33
+   → AC-33, AC-34
 9. As a reviewer, I want every file (and line) the brief points me to to be
    real, so I never land on a path or line that doesn't exist in this PR.
-   → AC-15, AC-16
+   → AC-17, AC-18
 10. As a reviewer, I want reloading the page to show the same brief
     instantly, so I'm not paying for a regeneration I didn't ask for.
-    → AC-18, AC-19
+    → AC-20, AC-21
 11. As a reviewer, I want a refresh control that regenerates the brief, so I
     can get a fresh read after new commits land.
-    → AC-20
+    → AC-22
 12. As a workspace admin, I want generation cost bounded — one model call per
     request, resolved from the `risk_brief` Settings model, rate-limited —
     so repeated clicks can't run away.
-    → AC-13, AC-14, AC-21
+    → AC-14, AC-16
 13. As a reviewer, I want the brief's attached-specs grounding to come from
     whichever agent actually reviewed this PR, so the context matches what
     judged it, rather than an arbitrary or unrelated agent's attachments.
-    → AC-8, AC-12
+    → AC-10, AC-13
 14. As a workspace member, I want brief data strictly scoped to my workspace,
     so I never see or affect another workspace's PR.
-    → AC-22
+    → AC-23
 15. As a reviewer, I may want a combined verdict/score/summary banner, so the
     brief sits alongside the PR's current review status — optional, and its
     absence must never hide the required summary/risks/focus content.
-    → AC-34 (P3)
+    → AC-35 (P3)
 
 ## Acceptance criteria (EARS)
 

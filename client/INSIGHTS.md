@@ -9,6 +9,77 @@ gotchas, dead ends, decisions that don't belong in the fixed map in
 What happened, what was tried, what actually worked or didn't, and why.
 -->
 
+## 2026-10-06 — `PrBriefCard.test.tsx` has no `QueryClientProvider`, so `latestReview` must be a prop, not a second `usePrReviews()` call [Decision]
+T14's task text offered calling `usePrReviews(prId)` directly inside `PrBriefCard` as a supposedly-free
+alternative to prop-threading, reasoning that TanStack Query would dedupe it against `page.tsx`'s existing
+call with the same `prId`. That's true at runtime, but `PrBriefCard.test.tsx` (`client/src/app/repos/[repoId]/
+pulls/[number]/_components/PrBriefCard/PrBriefCard.test.tsx:10-13`) only mocks `../../../../../../../lib/hooks/
+brief` — it never wraps the tree in a `QueryClientProvider` (contrast `OverviewTab/IntentCard.test.tsx:23`,
+which does). Calling the real, unmocked `usePrReviews` (`client/src/lib/hooks/reviews.ts:52-58`) inside
+`PrBriefCard` would throw "No QueryClient set" the moment any existing test rendered the component. Went with
+an optional `latestReview?: ReviewRecord | null` prop instead (`PrBriefCard.tsx:22`), computed once in
+`page.tsx` from the already-fetched `reviews` array (`reviews?.find(r => r.kind === "review") ?? null`,
+`page.tsx:43-45`) and threaded through `OverviewTab`. Anyone tempted by the "just call the hook again, Query
+dedupes it" shortcut should check whether the component's existing test file assumes no QueryClient context
+first.
+
+## 2026-10-06 — jsdom has no `scrollIntoView`; `vi.spyOn` on it throws "does not exist" [Mistake]
+Testing that a `focusPath` prop reaches `FileCard` (which calls
+`rootRef.current?.scrollIntoView?.()` on focus match —
+`client/src/components/diff-viewer/FileCard/FileCard.tsx:56-63`) by writing
+`vi.spyOn(window.HTMLElement.prototype, "scrollIntoView").mockImplementation(...)`
+in `DiffTab.test.tsx` throws `Error: scrollIntoView does not exist` — jsdom
+(the project's test environment) never implements this DOM method at all, so
+there's no existing property for `spyOn` to wrap. Fix: assign it directly,
+`window.HTMLElement.prototype.scrollIntoView = vi.fn()`, before rendering —
+this both stubs the missing method and lets the FileCard's optional-chained
+call (`?.()`) succeed instead of silently no-op'ing. Relevant for any future
+test asserting scroll-into-view behavior anywhere in `client/`.
+
+## 2026-10-06 — `tab=diff&file=<path>` URL params wire `PrBriefCard`'s review-focus links to the diff viewer [Decision]
+Wired `OverviewTab`'s new `onFocusFile` callback (from `PrBriefCard`,
+`client/src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/OverviewTab.tsx:30`)
+through `page.tsx`'s `handleFocusFile` (`page.tsx:85-89`), which does one
+atomic `router.replace` setting both `tab=diff` and `file=<path>` from the
+same `URLSearchParams` snapshot — doing this as two sequential `setParam`
+calls (each rebuilding from `search.toString()`) would race, since the
+second call's snapshot wouldn't yet reflect the first's `tab` change. `file`
+is read in `page.tsx` as `search.get("file")` (URLSearchParams handles the
+`/`-containing path's encoding, no manual percent-encoding) and passed as
+`focusPath` into `DiffTab`, which forwards it to both `SmartDiffViewer` and
+the plain `DiffViewer` fallback (`DiffTab.tsx:114-124`) since either can be
+the active viewer depending on the Smart/Original order toggle. `setTab()`
+(`page.tsx:73-84`) now clears `file` whenever navigating to any tab other
+than `"diff"`, so a stale focus target never resurfaces on a later manual
+visit to Files Changed.
+
+## 2026-10-06 — `PrBriefCard`'s `nothing_to_brief`/mutation-error sub-states live inside the `not_generated` branch, not as separate top-level early returns [Decision]
+The implementation plan (`docs/plans/pr-why-risk-brief.md`, T10) lists 6 states "as early returns, in
+this order": loading → `not_generated` → mutation-pending → `nothing_to_brief` → error → ready. Taken
+literally as 6 sibling `if` returns this is impossible: `useGenerateBrief`'s `nothing_to_brief` result
+only ever surfaces via the *mutation's own* `.data`/`.isError` (`client/src/lib/hooks/brief.ts:26-31`
+never writes it into the `usePrBrief` query cache), so the query's `status` stays `'not_generated'`
+forever regardless of how the generate attempt resolved. `PrBriefCard.tsx`'s actual branch order is:
+query loading → query error → (`data.status === 'not_generated'`: check
+`generateBrief.data?.status === 'nothing_to_brief'` → check `generateBrief.isError` → else render the
+emptyHint+Generate button) → ready. This preserves every acceptance bullet (AC-24/25/27-32) but means a
+mutation error while already in the `ready` state does NOT currently blank out the ready content (no AC
+covers that overlap) — a future task adding that case should extend the `ready` branch with an inline
+error affordance rather than re-introducing a blanket top-level error early-return, which would make a
+failed refresh wipe previously-good brief content for no testable benefit.
+
+## 2026-10-06 — `ReviewFocusList`'s null-line aria-label intentionally skips `card.reviewFocusItemAriaLabel` [Decision]
+`brief.json`'s `card.reviewFocusItemAriaLabel` is `"{file}, line {line}, {reason}"` — an ICU template
+with a `{line}` placeholder. For `ReviewFocusItem.line === null` (`@devdigest/shared`'s
+`ReviewFocusItem`, `client/src/vendor/shared/contracts/brief.ts:129-133`), interpolating that key would
+either throw (next-intl expects a value) or render a literal `"null"`/`"undefined"` into the announced
+label, which would violate the plan's AC-32 ("a `line: null` item's accessible label contains no digits
+from a line number" — trivially true for `null`, but the *wrong* string is still a UX bug for screen
+reader users). `ReviewFocusList.tsx` branches explicitly: `t("card.reviewFocusItemAriaLabel", {...})`
+only when `item.line !== null`, otherwise builds `` `${item.file}, ${item.reason}` `` by hand with no
+i18n key at all. Anyone revisiting this copy should add a second ICU key for the no-line case rather
+than stuffing a conditional `{line}` value into the existing one.
+
 ## 2026-10-04 — `ContextAttachmentPicker`'s 8 hardcoded strings moved to `context.json`'s new `picker.*` group; kept the redundant footer, didn't remove it [Decision]
 Architecture-reviewer flagged `client/src/components/context-attachments/ContextAttachmentPicker.tsx` for 8
 hardcoded English strings. Added a `picker` key group to `client/messages/en/context.json` (filterPlaceholder,

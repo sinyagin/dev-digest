@@ -15,5 +15,21 @@
     "blame": "blame",
     "noHistory": "No history available for this line.",
     "noCommits": "No commits found for this line."
+  },
+  "card": {
+    "title": "PR Brief",
+    "generate": "Generate brief",
+    "refresh": "Refresh",
+    "refreshAriaLabel": "Regenerate PR brief",
+    "generating": "Generating…",
+    "emptyHint": "Generate a brief to get a summary, risk areas, and review focus for this PR.",
+    "summaryLabel": "Summary",
+    "riskAreasLabel": "Risk areas",
+    "reviewFocusLabel": "Review focus",
+    "missingIntent": "Intent not available",
+    "missingBlast": "Blast radius not available",
+    "nothingToBrief": "This PR has no changed files to brief.",
+    "error": "Could not load the PR brief. Try again.",
+    "reviewFocusItemAriaLabel": "{file}, line {line}, {reason}"
   }
 }

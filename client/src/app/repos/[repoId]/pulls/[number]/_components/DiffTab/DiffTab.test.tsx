@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
@@ -58,10 +59,10 @@ const FINDINGS: FindingRecord[] = [
   },
 ];
 
-function renderTab() {
+function renderTab(extraProps: Partial<ComponentProps<typeof DiffTab>> = {}) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: prReviewMessages, shell: shellMessages }}>
-      <DiffTab prId="pr1" filesCount={1} files={FILES} canComment latestFindings={FINDINGS} />
+      <DiffTab prId="pr1" filesCount={1} files={FILES} canComment latestFindings={FINDINGS} {...extraProps} />
     </NextIntlClientProvider>,
   );
 }
@@ -85,5 +86,19 @@ describe("DiffTab", () => {
     expect(screen.getByText("Off-by-one")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Accept"));
     expect(mutate).toHaveBeenCalledWith({ findingId: "f1", action: "accept", prId: "pr1" });
+  });
+
+  it("forwards focusPath to the rendered viewer, scrolling the matching file into view in both Smart and Original order", () => {
+    // jsdom doesn't implement scrollIntoView at all — stub it directly rather
+    // than spying on a nonexistent prototype method.
+    const scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    renderTab({ focusPath: "src/a.ts" });
+    expect(scrollIntoView).toHaveBeenCalled();
+
+    scrollIntoView.mockClear();
+    fireEvent.click(screen.getByRole("switch")); // switch to the plain DiffViewer fallback
+    expect(scrollIntoView).toHaveBeenCalled();
   });
 });

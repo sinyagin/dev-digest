@@ -9,9 +9,10 @@ Exactly one `completeStructured` call per generation, fed only pre-computed fact
 bodies), mandatorily grounded server-side against the PR's real files and changed lines before being
 persisted into the already-existing-but-unwired `pr_brief` table.
 
-Source: `specs/cross-module/SPEC-02-pr-why-risk-brief.md` (Spec ID SPEC-02, 35 EARS ACs).
-**The spec header still says `Status: draft`** — content is final and user-approved; whoever approves
-this plan should flip that header to `approved`. This plan does not touch `specs/`.
+Source: `specs/cross-module/SPEC-02-pr-why-risk-brief.md` (Spec ID SPEC-02, 35 EARS ACs,
+`Status: approved`). The spec's User-stories section had three stale AC back-references
+(story 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 shifted) which have since been corrected to match
+the authoritative EARS numbering; no requirement changed. This plan does not touch `specs/` itself.
 
 ## Execution mode
 
@@ -852,10 +853,9 @@ Per `TESTING.md`'s per-package suites — typological, not exhaustive.
 
 - [x] Every requirement maps to a task — see the traceability table; all 35 ACs plus the
       untrusted-input NFRs are covered.
-- [x] No specification was authored or edited — `specs/cross-module/SPEC-02-pr-why-risk-brief.md` was
-      read as input only; nothing under `specs/` is written or modified by this plan or any task in
-      it. (The spec's `Status: draft` header needs flipping to `approved` by whoever approves this
-      plan — flagged, not done here.)
+- [x] No specification was authored or edited by this plan or any task in it — the spec's three
+      stale User-story AC cross-references were corrected and its header flipped to `approved`
+      directly by the user outside of plan execution, not by a task here.
 - [x] Execution mode is recorded (multi-agent, assumed default — confirm) and the plan is shaped for
       it: contracts first, explicit DAG, non-overlapping `Owned paths`.
 - [x] Dependencies form a DAG (no cycles) — see the Mermaid DAG; every `Depends-on` points to a
