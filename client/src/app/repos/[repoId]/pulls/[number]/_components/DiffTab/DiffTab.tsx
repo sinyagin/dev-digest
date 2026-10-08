@@ -20,6 +20,9 @@ interface DiffTabProps {
   latestFindings?: FindingRecord[];
   repoFullName?: string | null;
   headSha?: string | null;
+  /** Optional: when set, force-opens and scrolls to the matching file's card
+     in whichever diff viewer (smart or plain) is currently rendered. */
+  focusPath?: string | null;
 }
 
 export function DiffTab({
@@ -30,6 +33,7 @@ export function DiffTab({
   latestFindings,
   repoFullName,
   headSha,
+  focusPath,
 }: DiffTabProps) {
   const t = useTranslations("prReview");
   const { data: comments } = usePrComments(prId);
@@ -108,9 +112,15 @@ export function DiffTab({
         Files changed · {filesCount} files
       </SectionLabel>
       {smartOrder && smartDiff ? (
-        <SmartDiffViewer smartDiff={smartDiff} files={files} commenting={commenting} findingApi={findingApi} />
+        <SmartDiffViewer
+          smartDiff={smartDiff}
+          files={files}
+          commenting={commenting}
+          findingApi={findingApi}
+          focusPath={focusPath}
+        />
       ) : (
-        <DiffViewer files={files} commenting={commenting} />
+        <DiffViewer files={files} commenting={commenting} focusPath={focusPath} />
       )}
     </section>
   );

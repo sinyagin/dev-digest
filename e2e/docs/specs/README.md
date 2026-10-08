@@ -1,7 +1,8 @@
 # e2e/docs/specs
 
-Feature and design specs for work landing in `@devdigest/e2e` — written before
-(or alongside) an implementation. Not test specs: those are the
-`*.flow.json` files in [`../../specs/`](../../specs/), run by `run.ts`.
-
-Empty for now — add one file per spec (e.g. `multi-repo-flows.md`).
+Moved. Design/feature specs for `@devdigest/e2e` now live in the repo-wide
+[`specs/e2e/`](../../../specs/e2e/) — see
+[`specs/README.md`](../../../specs/README.md) for the Spec-Driven
+Development conventions. Not to be confused with
+[`../../specs/`](../../specs/), which holds the `*.flow.json` test-flow
+specs the suite actually runs.

@@ -125,12 +125,27 @@ export const SmartDiff = z.object({
 });
 export type SmartDiff = z.infer<typeof SmartDiff>;
 
+// ---- Review focus & missing context ----
+export const ReviewFocusItem = z.object({
+  file: z.string(),
+  line: z.number().int().nullable(),
+  reason: z.string(),
+});
+export type ReviewFocusItem = z.infer<typeof ReviewFocusItem>;
+
+export const MissingContextKey = z.enum(['intent', 'blast']);
+export type MissingContextKey = z.infer<typeof MissingContextKey>;
+
 // ---- Composed PR Brief (pr_brief.json) ----
 export const PrBrief = z.object({
-  intent: Intent,
-  blast: BlastRadius,
+  intent: Intent.nullable(),
+  blast: BlastRadius.nullable(),
   risks: Risks,
   history: PrHistory,
+  summary: z.string(),
+  review_focus: z.array(ReviewFocusItem),
+  missing_context: z.array(MissingContextKey),
+  generated_for_sha: z.string(),
 });
 export type PrBrief = z.infer<typeof PrBrief>;
 
@@ -166,3 +181,16 @@ export const BlastRadiusResponse = BlastRadius.extend({
   priorPrs: z.array(PriorPr).optional(),
 });
 export type BlastRadiusResponse = z.infer<typeof BlastRadiusResponse>;
+
+// ---- Brief HTTP responses (GET/POST /pulls/:id/brief) ----
+export const BriefReadResponse = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('ready'), brief: PrBrief }),
+  z.object({ status: z.literal('not_generated') }),
+]);
+export type BriefReadResponse = z.infer<typeof BriefReadResponse>;
+
+export const BriefGenerateResponse = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('ready'), brief: PrBrief }),
+  z.object({ status: z.literal('nothing_to_brief'), reason: z.string() }),
+]);
+export type BriefGenerateResponse = z.infer<typeof BriefGenerateResponse>;

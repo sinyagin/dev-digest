@@ -138,6 +138,7 @@
     "tabs": {
       "config": "Config",
       "preview": "Preview",
+      "context": "Context",
       "evals": "Evals",
       "stats": "Stats",
       "versions": "Versions"
@@ -165,6 +166,12 @@
   },
   "placeholder": {
     "body": "Skill-level {label} land in a later lesson."
+  },
+  "context": {
+    "attachedCount": "{count} attached",
+    "inheritanceHint": "Any agent using this skill inherits these documents.",
+    "serializesAs": "SERIALIZES AS",
+    "previewHeading": "## Project specifications"
   },
   "versionsTab": {
     "current": "current",

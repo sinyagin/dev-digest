@@ -189,6 +189,39 @@ describe('AI contracts parse fixtures', () => {
     });
     expect(trace.tool_calls).toHaveLength(1);
   });
+
+  it('RunTrace: specs_missing/specs_truncated are optional (backward-compat with historical traces)', () => {
+    // A historical trace object with NEITHER new field present must still parse —
+    // this is the backward-compatibility guarantee the Project Context feature depends on.
+    const historical = RunTrace.parse({
+      config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
+      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, cost_usd: 0.0021, findings: 3, grounding: '3/3 passed' },
+      prompt_assembly: { system: 's', user: 'u' },
+      tool_calls: [],
+      raw_output: '{}',
+      memory_pulled: [],
+      specs_read: ['specs/security-baseline.md'],
+      log: [],
+    });
+    expect(historical.specs_missing).toBeUndefined();
+    expect(historical.specs_truncated).toBeUndefined();
+
+    // A newer trace populating both fields parses too.
+    const current = RunTrace.parse({
+      config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
+      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, cost_usd: 0.0021, findings: 3, grounding: '3/3 passed' },
+      prompt_assembly: { system: 's', user: 'u' },
+      tool_calls: [],
+      raw_output: '{}',
+      memory_pulled: [],
+      specs_read: ['specs/security-baseline.md'],
+      specs_missing: ['specs/payments/README.md'],
+      specs_truncated: ['specs/security-baseline.md'],
+      log: [],
+    });
+    expect(current.specs_missing).toEqual(['specs/payments/README.md']);
+    expect(current.specs_truncated).toEqual(['specs/security-baseline.md']);
+  });
 });
 
 describe('platform DTOs', () => {

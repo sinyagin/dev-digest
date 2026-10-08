@@ -1,5 +1,6 @@
 import type { Container } from '../../platform/container.js';
 import type { Skill, SkillSource, SkillType, SkillVersion } from '@devdigest/shared';
+import { ValidationError } from '../../platform/errors.js';
 import { SkillsRepository } from './repository.js';
 import { toSkillDto, toSkillVersionDto } from './helpers.js';
 import { importSkillFromFile, type ImportSkillFileInput, type ImportSkillResult } from './import.js';
@@ -15,6 +16,25 @@ import { importSkillFromFile, type ImportSkillFileInput, type ImportSkillResult 
 export type { ImportSkillResult } from './import.js';
 
 const DEFAULT_SOURCE: SkillSource = 'manual';
+
+/**
+ * A path resolving outside the repo root — a leading `/` or `~`, or any
+ * `..` path segment — is rejected at this boundary (AC-37). This endpoint
+ * never touches the filesystem itself, but attachment requests are named
+ * explicitly in AC-37, so invalid paths are rejected here too, before the
+ * DB write, not just on read elsewhere (T5's clone-docs confinement). No
+ * shared helper exists yet for this rule; the agent-side sibling endpoint
+ * applies the same rule independently in its own module.
+ */
+const UNSAFE_CONTEXT_PATH = /^[/~]|(^|\/)\.\.(\/|$)/;
+
+function assertBoundaryPaths(paths: string[]): void {
+  for (const path of paths) {
+    if (!path || UNSAFE_CONTEXT_PATH.test(path)) {
+      throw new ValidationError(`Invalid context document path: ${path}`);
+    }
+  }
+}
 
 export interface CreateSkillInput {
   name: string;
@@ -137,6 +157,37 @@ export class SkillsService {
     if (!row) return undefined;
     const counts = await this.repo.agentCounts(workspaceId);
     return toSkillDto(row, counts.get(row.id) ?? 0);
+  }
+
+  /**
+   * Project-context attachment paths currently attached to a skill (AC-17).
+   * Returns undefined when the skill isn't in this workspace (route → 404).
+   */
+  async contextDocuments(workspaceId: string, id: string): Promise<string[] | undefined> {
+    const skill = await this.repo.getById(workspaceId, id);
+    if (!skill) return undefined;
+    return this.repo.contextDocumentsFor(id);
+  }
+
+  /**
+   * Replace-all write of a skill's attached context-document paths (AC-17).
+   * Deliberately bypasses `update()`/`repo.update()` — no `version` bump, no
+   * `skill_versions` snapshot; attaching/detaching context documents is not
+   * a body change. Rejects any path resolving outside the repo root before
+   * the DB write (AC-37). Returns undefined when the skill isn't in this
+   * workspace (route → 404); an empty `paths: []` is valid and persists
+   * (detach everything), never rejected or treated as a no-op.
+   */
+  async setContextDocuments(
+    workspaceId: string,
+    id: string,
+    paths: string[],
+  ): Promise<string[] | undefined> {
+    const skill = await this.repo.getById(workspaceId, id);
+    if (!skill) return undefined;
+    assertBoundaryPaths(paths);
+    await this.repo.setContextDocuments(id, paths);
+    return paths;
   }
 
   /**

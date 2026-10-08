@@ -2,7 +2,7 @@
 
 Fastify API + Drizzle/Postgres. Imports repos & PRs, runs `repo-intel`, wires
 `reviewer-core` to an LLM. Full docs: [`README.md`](README.md). Deeper notes:
-[`docs/`](docs/) · [`specs/`](specs/) · [`INSIGHTS.md`](INSIGHTS.md).
+[`docs/`](docs/) · [`specs/`](../specs/server/) · [`INSIGHTS.md`](INSIGHTS.md).
 
 ## Stack
 

@@ -46,6 +46,7 @@
     "tabs": {
       "config": "Config",
       "skills": "Skills",
+      "context": "Context",
       "evals": "Evals",
       "stats": "Stats",
       "ci": "CI"
@@ -97,5 +98,11 @@
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."
+  },
+  "context": {
+    "attachedCount": "{n} of {m} attached",
+    "tokens": "≈ {tokens} tokens",
+    "orderHint": "Order matters — earlier docs appear earlier in the assembled `## Project context` block.",
+    "injectionNotice": "Injected as an untrusted block (`## Project context`) into every run."
   }
 }

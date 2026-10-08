@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import { CiFailOn, ContextAttachmentSet, Provider, ReviewStrategy } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -26,6 +26,8 @@ const VersionParams = z.object({
  *   GET    /agents/:id/versions/:version → one config snapshot
  *   GET    /agents/:id/skills       → linked skills (ordered)
  *   POST   /agents/:id/skills       → set/reorder linked skills OR link one
+ *   GET    /agents/:id/context-documents  → attached Project Context doc paths
+ *   POST   /agents/:id/context-documents  → replace the attached doc path set
  *   GET    /agents/:id/models       → dynamic model list for the agent's provider
  *   GET    /providers/:id/models    → dynamic model list for a provider (editor)
  */
@@ -54,6 +56,28 @@ const UpdateAgentBody = z.object({
   ci_fail_on: CiFailOn.optional(),
   repo_intel: z.boolean().optional(),
   enabled: z.boolean().optional(),
+});
+
+/**
+ * A path is "plausible repo-relative" when it isn't absolute and has no `..`
+ * segments — reject both (AC-37) rather than silently dropping or 500ing;
+ * nothing is read from disk here, this only guards what gets persisted.
+ */
+const isRepoRelativePath = (path: string): boolean =>
+  !path.startsWith('/') && !path.split('/').includes('..');
+
+/**
+ * Same `{ paths: string[] }` shape as the shared `ContextAttachmentSet`
+ * contract, with per-path repo-relative validation added at this boundary
+ * (the shared contract itself stays untouched). An empty `paths: []` is a
+ * valid "detach everything" request, not an error.
+ */
+const ContextAttachmentSetBody = ContextAttachmentSet.extend({
+  paths: z.array(
+    z.string().refine(isRepoRelativePath, {
+      message: 'path must be repo-relative: no leading "/" and no ".." segments',
+    }),
+  ),
 });
 
 /** Either set the whole ordered set (`skill_ids`) or link one (`skill_id`). */
@@ -161,6 +185,28 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
           : await service.linkSkill(workspaceId, req.params.id, body.skill_id!, body.order);
       if (!links) throw new NotFoundError('Agent not found');
       return links;
+    },
+  );
+
+  app.get(
+    '/agents/:id/context-documents',
+    { schema: { params: IdParams } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const paths = await service.contextDocuments(workspaceId, req.params.id);
+      if (!paths) throw new NotFoundError('Agent not found');
+      return { paths };
+    },
+  );
+
+  app.post(
+    '/agents/:id/context-documents',
+    { schema: { params: IdParams, body: ContextAttachmentSetBody } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const paths = await service.setContextDocuments(workspaceId, req.params.id, req.body.paths);
+      if (!paths) throw new NotFoundError('Agent not found');
+      return { paths };
     },
   );
 

@@ -37,6 +37,7 @@ export function FileCard({
   commenting,
   hasFindings,
   findingApi,
+  focusPath,
 }: {
   file: PrFile;
   commenting?: DiffCommentApi;
@@ -44,11 +45,23 @@ export function FileCard({
      badge when this file has any review findings. */
   hasFindings?: boolean;
   findingApi?: DiffFindingApi;
+  /** Optional: when this matches `file.path`, force-open the card and
+     scroll it into view. Absent/non-matching → no behavior change. */
+  focusPath?: string | null;
 }) {
   const t = useTranslations("shell");
   const [open, setOpen] = React.useState(
     (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
   );
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const isFocusTarget = focusPath != null && focusPath === file.path;
+
+  React.useEffect(() => {
+    if (!isFocusTarget) return;
+    setOpen(true);
+    rootRef.current?.scrollIntoView?.({ block: "start" });
+  }, [isFocusTarget]);
+
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
 
   const { byLine: findingsByLine, unanchored: unanchoredFindings } = React.useMemo(
@@ -72,7 +85,7 @@ export function FileCard({
     : 0;
 
   return (
-    <div style={s.fileCard}>
+    <div ref={rootRef} style={s.fileCard}>
       <div onClick={() => setOpen((o) => !o)} style={s.fileHeader}>
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
         <Icon.FileText size={14} style={s.fileIcon} />

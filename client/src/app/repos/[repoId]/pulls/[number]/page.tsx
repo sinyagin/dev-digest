@@ -40,6 +40,9 @@ export default function PRDetailPage() {
 
   const isLoading = pullsLoading || (prId != null && detailLoading);
   const { data: reviews, refetch: refetchReviews } = usePrReviews(prId);
+  // `reviews` is newest-first; the most recent review-kind record (as opposed
+  // to a 'summary'-kind one) feeds PrBriefCard's optional combined banner.
+  const latestReview = reviews?.find((r) => r.kind === "review") ?? null;
 
   // Live run tracking is SERVER-SOURCED (agent_runs status='running'): survives
   // navigation AND reload, and self-clears via polling when runs finish.
@@ -61,6 +64,7 @@ export default function PRDetailPage() {
 
   const tab = search.get("tab") ?? "overview";
   const traceRunId = search.get("trace");
+  const focusFile = search.get("file");
   const rawSeverity = search.get("severity");
   const severityFilter = SEVERITY_LEVELS.includes(rawSeverity as Severity) ? (rawSeverity as Severity) : null;
   const setParam = (key: string, val: string | null) => {
@@ -69,7 +73,24 @@ export default function PRDetailPage() {
     else sp.set(key, val);
     router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
   };
-  const setTab = (t: string) => setParam("tab", t);
+  const setTab = (t: string) => {
+    // Leaving the diff tab invalidates any pending focus target so a later
+    // manual visit to Files Changed doesn't re-scroll to a stale file.
+    if (t !== "diff") {
+      const sp = new URLSearchParams(search.toString());
+      sp.set("tab", t);
+      sp.delete("file");
+      router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
+    } else {
+      setParam("tab", t);
+    }
+  };
+  const handleFocusFile = (file: string) => {
+    const sp = new URLSearchParams(search.toString());
+    sp.set("tab", "diff");
+    sp.set("file", file);
+    router.replace(`/repos/${repoId}/pulls/${number}?${sp.toString()}`);
+  };
 
   // Reviews come newest-first; each is its own run (grouped into accordions).
   const runs = reviews ?? [];
@@ -139,7 +160,14 @@ export default function PRDetailPage() {
 
       <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
         {tab === "overview" && (
-          <OverviewTab prBody={pr.body} prId={prId} repoFullName={repoFullName} headSha={pr.head_sha} />
+          <OverviewTab
+            prBody={pr.body}
+            prId={prId}
+            repoFullName={repoFullName}
+            headSha={pr.head_sha}
+            onFocusFile={handleFocusFile}
+            latestReview={latestReview}
+          />
         )}
 
         {tab === "findings" && (
@@ -179,6 +207,7 @@ export default function PRDetailPage() {
             latestFindings={runs[0]?.findings}
             repoFullName={repoFullName}
             headSha={pr.head_sha}
+            focusPath={focusFile}
           />
         )}
       </div>

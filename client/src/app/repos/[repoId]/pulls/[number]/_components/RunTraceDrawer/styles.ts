@@ -97,6 +97,15 @@ export const s = {
   specsWrap: { display: "flex", gap: 6, flexWrap: "wrap" } satisfies CSSProperties,
   specsNone: { color: "var(--text-muted)" } satisfies CSSProperties,
   spec: { fontSize: 12, color: "var(--text-secondary)" } satisfies CSSProperties,
+  /** specs_missing / specs_truncated chip — colour-coded per status (see
+      SPECS_STATUS_COLORS) so the two new rows read as visually distinct from
+      each other and from the plain `spec` (specs_read) chip above. */
+  specStatus: (color: string): CSSProperties => ({
+    fontSize: 12,
+    color,
+    borderLeft: `2px solid ${color}`,
+    paddingLeft: 6,
+  }),
   statsRow: { display: "flex", gap: 10 } satisfies CSSProperties,
   rawPre: {
     margin: 0,

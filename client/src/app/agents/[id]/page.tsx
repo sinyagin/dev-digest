@@ -11,8 +11,9 @@ import { AgentCard } from "../_components/AgentCard";
 import { AgentEditor } from "./_components/AgentEditor";
 import { useAgents, useAgent, useUpdateAgent } from "../../../lib/hooks/agents";
 import { ApiError } from "../../../lib/api";
+import { TABS } from "./_components/AgentEditor/constants";
 
-const VALID_TABS = ["config", "skills"];
+const VALID_TABS = TABS.map((t) => t.key);
 
 export default function AgentEditorPage() {
   const params = useParams<{ id: string }>();

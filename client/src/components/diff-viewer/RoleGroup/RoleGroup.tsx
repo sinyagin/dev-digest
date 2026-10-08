@@ -51,16 +51,25 @@ export function RoleGroup({
   byPath,
   commenting,
   findingApi,
+  focusPath,
 }: {
   group: SmartDiffGroup;
   byPath: Map<string, PrFile>;
   commenting?: DiffCommentApi;
   findingApi?: DiffFindingApi;
+  /** Optional: forwarded to FileCards; also force-opens this group when it
+     contains the focused file (docs/boilerplate groups default collapsed). */
+  focusPath?: string | null;
 }) {
   const t = useTranslations("prReview");
+  const hasFocusedFile = focusPath != null && group.files.some((f) => f.path === focusPath);
   const [open, setOpen] = React.useState(!DEFAULT_COLLAPSED[group.role]);
   const filesWithFindings = group.files.filter((f) => f.finding_lines.length > 0).length;
   const RoleIcon = Icon[ROLE_ICON[group.role]];
+
+  React.useEffect(() => {
+    if (hasFocusedFile) setOpen(true);
+  }, [hasFocusedFile]);
 
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden" }}>
@@ -122,6 +131,7 @@ export function RoleGroup({
                 commenting={commenting}
                 hasFindings={sf.finding_lines.length > 0}
                 findingApi={findingApi}
+                focusPath={focusPath}
               />
             );
           })}

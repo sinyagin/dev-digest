@@ -8,10 +8,11 @@ trigger rules ("Use proactively when…").
 | Agent | Model | Role | Writes code? |
 |-------|-------|------|--------------|
 | [`researcher`](./researcher.md) | sonnet | Read-only research (project + internet), strict structured output | No |
+| [`spec-creator`](./spec-creator.md) | opus | Spec-Driven Development author — turns a request + design sources into an EARS spec | No (only spec files under `specs/`) |
 | [`brainstorm`](./brainstorm.md) | sonnet | Read-only ideation — generates candidate approaches before planning | No |
-| [`planner`](./planner.md) | opus | Read-only architect — produces a structured Development Plan | No (only the plan file) |
+| [`implementation-planner`](./implementation-planner.md) | opus | Read-only architect — verifies requirements and produces a structured Implementation Plan (does not author specs) | No (only the plan file) |
 | [`implementer`](./implementer.md) | sonnet | Implements ONE task from a plan (backend or UI), self-verifies | Yes |
-| [`test-writer`](./test-writer.md) | sonnet | Writes unit + integration tests (backend + reviewer-core), self-verifies | Yes |
+| [`test-writer`](./test-writer.md) | sonnet | Writes unit + integration tests (backend + reviewer-core + client), self-verifies | Yes |
 | [`architecture-reviewer`](./architecture-reviewer.md) | opus | Read-only structural/architecture review of a diff or file set | No |
 | [`security-reviewer`](./security-reviewer.md) | opus | Read-only security audit of a diff or file set | No |
 | [`plan-verifier`](./plan-verifier.md) | opus | Read-only requirements-completion / traceability check | No |
@@ -21,16 +22,24 @@ trigger rules ("Use proactively when…").
 
 ```
 you / main session
-   └─ brainstorm (sonnet, read-only) → 3–5 candidate approaches + tradeoffs (advisory, non-binding)
-         └─ planner (opus, read-only) → docs/plans/<feature>.md
-               (phased tasks with Type · Skills · Owned paths · Depends-on · Acceptance)
-               └─ N× implementer (sonnet, parallel) — one task each, inside its Owned paths
-                     └─ pr-self-review (existing skill) — final gate before push
+   └─ spec-creator (opus, specs/ only) → specs/<scope>/SPEC-NN-<feature>.md
+         (WHAT/WHY: EARS acceptance criteria, edge cases, cross-module interactions, contracts)
+         └─ brainstorm (sonnet, read-only) → 3–5 candidate approaches + tradeoffs (advisory, non-binding)
+               └─ implementation-planner (opus, read-only) → docs/plans/<feature>.md
+                     (verifies requirements · recommends · asks execution mode;
+                      phased tasks with Type · Skills · Owned paths · Depends-on · Acceptance)
+                     └─ implementer(s) (sonnet) — multi-agent in parallel, or a single one-pass run
+                           └─ pr-self-review (existing skill) — final gate before push
 ```
 
-The pipeline mirrors Claude Code's recommended **Explore → Plan → Implement → Commit** loop: the
-planner runs read-only during Plan, the implementers run during Implement, and review stays a
-separate fresh-context step.
+For a net-new feature, `spec-creator` is the actual first step — it pins down WHAT/WHY before
+`brainstorm`/`implementation-planner` decide HOW. For small or already-clear changes, the pipeline
+can still start at `brainstorm`/`implementation-planner` directly. The pipeline mirrors Claude
+Code's recommended **Explore → Plan → Implement → Commit** loop: `spec-creator` and the
+implementation-planner run read-only (except their own output file) during Plan, the implementers
+run during Implement, and review stays a separate fresh-context step. Requirements (the
+*what/why*) are an **input** to the implementation-planner — it never authors or edits a
+specification.
 
 ---
 
@@ -38,20 +47,50 @@ separate fresh-context step.
 
 Pre-existing read-only research agent. Finds information inside the project or on the public
 internet and returns it in a strict template. Never edits files, never runs deep-research. The
-planner and implementer both follow its writing conventions (YAML frontmatter + Hard rules + fixed
-output template).
+implementation-planner and implementer both follow its writing conventions (YAML frontmatter +
+Hard rules + fixed output template).
+
+---
+
+## `spec-creator`
+
+**What it does.** A **read-only-except-specs** author for Spec-Driven Development (SDD). Given
+a feature request plus whatever design sources the user supplies — pasted text, Figma links or
+other URLs (via `WebFetch`), screenshots (via `Read`), or existing repo docs/code — it writes a
+single spec file describing **what** the feature must do and **why**, never the implementation.
+It actively hunts for what the request leaves out: uncovered edge cases and failure modes, how
+the feature talks to other modules (captured as a `Cross-module interactions` section, with a
+Mermaid diagram when the flow is non-obvious), the data-contract shapes crossing those
+boundaries, and UX gaps where the design would leave a user confused or without feedback. Every
+acceptance criterion is written as one EARS statement with an `AC-N` id and an `_(observable:
+…)_` verification hint, and every user story / edge case must trace to an `AC-N` or be explicitly
+marked "accepted: no handling" — a self-check runs before it returns. Anything that would change
+the spec's substance is asked via `AskUserQuestion` before writing; smaller open points are
+recorded inline as `[NEEDS CLARIFICATION: …]` instead of being guessed. It writes **only** under
+the repo-root `specs/` tree (`specs/<server|client|reviewer-core|e2e>/` for a single-module
+feature, `specs/cross-module/` for ≥2 modules), using one running `SPEC-NN` counter across the
+whole tree — see [`specs/README.md`](../../specs/README.md).
+
+**Based on:**
+
+- **This project's own earlier `spec-creator.md`** (`dev-digest-original/.claude/agents/spec-creator.md`) — the direct template this agent was adapted from
+- **EARS: The Easy Approach to Requirements Syntax** — [Mavin, Wilkinson, Harwood, Novak, IEEE RE'09](https://ieeexplore.ieee.org/document/5328509)
+- **Spec-driven development with AI** — [Spec-Driven Development with Agentic AI (ArceApps)](https://arceapps.com/blog/spec-driven-development-ai/)
+- **`description` as the routing trigger, write access scoped by prose hard rules** (the same restriction mechanism `implementation-planner`/`doc-writer` already use — this repo has no settings.json permission-glob mechanism to lean on instead) — [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents), [Best practices for Claude Code subagents (PubNub)](https://www.pubnub.com/blog/best-practices-for-claude-code-sub-agents/)
+- **Opus for design/requirements judgment** (model tiering) — [wshobson/agents](https://github.com/wshobson/agents)
 
 ---
 
 ## `brainstorm`
 
-**What it does.** A **read-only** ideation agent that runs before `planner`, closing the gap where
-the pipeline used to jump straight from a request to one committed plan. Given a feature or problem,
-it reads the relevant `CLAUDE.md`/`INSIGHTS.md`/`docs/`/`specs/` for real constraints, then generates
-3–5 genuinely distinct candidate approaches (spanning conventional/leaner/more-ambitious where the
-problem allows it) with their tradeoffs, affected areas, and complexity — plus the edge cases and
-open questions the request itself doesn't resolve. It never picks a winner, never writes a plan file,
-and never edits anything; `planner` is the one that converges on a single approach and commits it to
+**What it does.** A **read-only** ideation agent that runs before `implementation-planner`,
+closing the gap where the pipeline used to jump straight from a request to one committed plan.
+Given a feature or problem, it reads the relevant `CLAUDE.md`/`INSIGHTS.md`/`docs/`/`specs/` for
+real constraints, then generates 3–5 genuinely distinct candidate approaches (spanning
+conventional/leaner/more-ambitious where the problem allows it) with their tradeoffs, affected
+areas, and complexity — plus the edge cases and open questions the request itself doesn't resolve.
+It never picks a winner, never writes a plan file, and never edits anything;
+`implementation-planner` is the one that converges on a single approach and commits it to
 `docs/plans/<feature>.md`. Deep external research an idea might need (library capabilities, prior
 art) is explicitly delegated to `researcher` rather than duplicated here, so its own tool surface
 stays project-only (`Read`, `Glob`, `Grep`).
@@ -61,21 +100,26 @@ stays project-only (`Read`, `Glob`, `Grep`).
 - **Separating generation from evaluation into distinct agents/phases** — same-pass generation and
   filtering suppresses ideas before they're articulated — multi-agent ideation research (arXiv 2507.08350)
 - **Divergent-then-convergent prompting improves idea novelty**, with the convergent/evaluative pass
-  kept in a separate agent (here, `planner`) — LLM divergent-convergent creative generation research (arXiv 2512.23601)
+  kept in a separate agent (here, `implementation-planner`) — LLM divergent-convergent creative generation research (arXiv 2512.23601)
 - **Single-responsibility agent design** and **`description` as the routing trigger** — [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents), [Best practices for Claude Code subagents (PubNub)](https://www.pubnub.com/blog/best-practices-for-claude-code-sub-agents/)
 - **Start simple, constrain aggressively** (narrow tool set, explicit stopping criteria) — [Building effective agents (Anthropic)](https://resources.anthropic.com/building-effective-ai-agents)
-- **Delegating heavy discovery to a subagent** to keep context clean, the same pattern already used by `planner` — [subagents docs](https://code.claude.com/docs/en/sub-agents)
-- **Sonnet for the breadth-generation stage**, reserving opus for `planner`'s convergence (model tiering) — [wshobson/agents](https://github.com/wshobson/agents)
+- **Delegating heavy discovery to a subagent** to keep context clean, the same pattern already used by `implementation-planner` — [subagents docs](https://code.claude.com/docs/en/sub-agents)
+- **Sonnet for the breadth-generation stage**, reserving opus for `implementation-planner`'s convergence (model tiering) — [wshobson/agents](https://github.com/wshobson/agents)
 
 ---
 
-## `planner`
+## `implementation-planner`
 
-**What it does.** Turns a request into a structured, file-specific **Development Plan** written to
-`docs/plans/<feature>.md`. Knows every DevDigest module (`server/`, `client/`, `reviewer-core/`,
-`e2e/`, `@devdigest/shared`) and assigns each task a `Type`, a skill set, non-overlapping
-`Owned paths`, dependencies (a DAG), known gotchas from module insights, and measurable acceptance
-criteria. Read-only except for the plan file.
+**What it does.** Turns an **agreed set of requirements** (a spec, ticket, or clear request) into
+a structured, file-specific **Implementation Plan** written to `docs/plans/<feature>.md`. It does
+**not** author or edit specifications — requirements are an *input* it plans against. Before
+planning it (1) **verifies the requirements** — restating them, checking `specs/` for an existing
+`SPEC-NN`, flagging gaps, asking 1–4 clarifying questions, and offering recommendations for a
+better approach — and (2) **asks the execution mode**: multi-agent (parallel implementers,
+strictly non-overlapping `Owned paths`) or single-agent (one linear pass). It knows every
+DevDigest module (`server/`, `client/`, `reviewer-core/`, `e2e/`, `@devdigest/shared`) and assigns
+each task a `Type`, a skill set, owned paths, dependencies (a DAG), known gotchas from module
+insights, and measurable acceptance criteria. Read-only except for the plan file.
 
 **Carries the full skill set.** It preloads the same skills the implementer uses (backend + UI +
 core practices) plus `mermaid-diagram`, on purpose: it plans the implementation, so every practice
@@ -97,7 +141,7 @@ an implementer must follow has to be reflected in the plan.
 
 ## `implementer`
 
-**What it does.** Implements exactly one task from a Development Plan — backend (Fastify/Drizzle/
+**What it does.** Implements exactly one task from an Implementation Plan — backend (Fastify/Drizzle/
 onion) or UI (Next.js/React) — and brings it to green. Runs in parallel with other implementers on
 the **same branch** (no worktree isolation), so staying inside the task's `Owned paths` is what
 keeps the parallel run safe. Its self-check is narrow: write the code and make the module's existing
@@ -125,12 +169,14 @@ by choice, relying on `Owned paths` discipline instead of worktree isolation).
 
 ## `test-writer`
 
-**What it does.** Adds or extends unit and integration tests for the DevDigest backend (`server/`)
-and the LLM review engine (`reviewer-core/`). It enforces the project's test split (`*.it.test.ts`
-= real Postgres via testcontainers with transaction-rollback isolation; `*.test.ts` = hermetic unit
-with fake timers and seeded ids), injects a `FakeLlmProvider` at the `LLMProvider` seam for
-reviewer-core tests, and never modifies production `src/` files (only a type export strictly
-required to compile a test is permitted). Forbidden anti-patterns are encoded directly in its body:
+**What it does.** Adds or extends tests for the DevDigest backend (`server/`), the LLM review engine
+(`reviewer-core/`), and the web client (`client/` — React components and hooks via vitest + jsdom +
+React Testing Library). It enforces the project's test split (`*.it.test.ts` = real Postgres via
+testcontainers with transaction-rollback isolation; `*.test.ts` = hermetic unit with fake timers and
+seeded ids; client tests are always hermetic, RTL-driven), injects a `FakeLlmProvider` at the
+`LLMProvider` seam for reviewer-core tests, and never modifies production `src/` files (only a type
+export strictly required to compile a test is permitted). Forbidden anti-patterns are encoded
+directly in its body:
 tautological assertions, over-mocking, snapshot tests on dynamic output, and non-deterministic test
 bodies. Self-verifies by running the affected suites and pasting terminal evidence before reporting
 done.
@@ -154,9 +200,10 @@ are the always-on set.
 ## `architecture-reviewer`
 
 **What it does.** A **read-only** structural auditor (`tools: Read, Glob, Grep` — no `Edit`,
-`Write`, or `Bash`). Given a diff or file set, it reads the project's own authoritative docs first
-(`CLAUDE.md`, `server/CLAUDE.md`, `server/docs/architecture.md`, `reviewer-core/CLAUDE.md`,
-`reviewer-core/docs/pipeline.md`) and then checks seven named rules: inward-only dependencies,
+`Write`, or `Bash`). It audits the changed-file set the caller passes (never the whole repo) and
+reads the project's authoritative docs **only for the layers that set touches** — always root
+`CLAUDE.md`, plus the `server/` and/or `reviewer-core/` docs when those modules are in the set — then
+checks seven named rules: inward-only dependencies,
 business logic in routes, DI discipline, no `process.env` outside `LocalSecretsProvider`,
 `reviewer-core` zero-I/O, `groundFindings()` gate, and shared-contract deduplication. Every finding
 must cite the exact rule it violates; uncited generic opinions are suppressed. Write tools are
@@ -205,7 +252,7 @@ manually invoked, exactly like `architecture-reviewer`: it is **not** wired into
 ## `plan-verifier`
 
 **What it does.** A **read-only** completeness checker (`tools: Read, Glob, Grep, Bash` — no
-`Edit` or `Write`). Given a Development Plan, it walks every requirement and acceptance criterion,
+`Edit` or `Write`). Given an Implementation Plan, it walks every requirement and acceptance criterion,
 searches for the concrete implementing artifact (grep → structural glob → read), quotes verbatim
 evidence, and assigns one of four statuses: `done | partial | missing | cannot-verify`. `Bash` is
 used only to run grep/typecheck commands and capture output as evidence — never to modify state.

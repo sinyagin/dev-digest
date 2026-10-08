@@ -173,6 +173,35 @@ export class SkillsRepository {
     return row;
   }
 
+  // ---- context_documents (project-context attachments; no version bump) ----
+
+  /**
+   * Attached context-document paths for a skill, coalescing the jsonb
+   * `context_documents` column's `null` to `[]` (same convention as
+   * `evidenceFiles` elsewhere on this table). Returns `[]` if the skill
+   * doesn't exist, same as an unset column.
+   */
+  async contextDocumentsFor(skillId: string): Promise<string[]> {
+    const [row] = await this.db
+      .select({ contextDocuments: t.skills.contextDocuments })
+      .from(t.skills)
+      .where(eq(t.skills.id, skillId));
+    return row?.contextDocuments ?? [];
+  }
+
+  /**
+   * Replace-all write of a skill's attached context-document paths. A single
+   * atomic UPDATE — deliberately does not touch `version` or write a
+   * `skill_versions` snapshot (AC-17): attaching/removing context documents
+   * is not a body change.
+   */
+  async setContextDocuments(skillId: string, paths: string[]): Promise<void> {
+    await this.db
+      .update(t.skills)
+      .set({ contextDocuments: paths })
+      .where(eq(t.skills.id, skillId));
+  }
+
   // ---- agent_skills (read-only here — A2's agents repository owns writes) --
 
   /**
