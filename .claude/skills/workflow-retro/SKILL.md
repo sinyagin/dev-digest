@@ -1,20 +1,20 @@
 ---
-name: workflow-insights
-description: Compiles a retrospective on a just-completed multi-agent workflow — a run-plan execution, a spec-creator/Explore fan-out, or any session that dispatched several Agent calls toward one goal — covering agent count, dispatch order/parallelism, tokens and duration per agent, each agent's self-reported difficulties/ease/duplicated-info/possible-misses, and concrete recommendations, appended as a dated entry to WORKFLOW-INSIGHTS.md. Invoke explicitly via /workflow-insights — this does not fire on its own.
+name: workflow-retro
+description: Compiles a retrospective on a just-completed multi-agent workflow — a run-plan execution, a spec-creator/Explore fan-out, or any session that dispatched several Agent calls toward one goal — covering agent count, dispatch order/parallelism, tokens and duration per agent, each agent's self-reported difficulties/ease/duplicated-info/possible-misses, and concrete recommendations, appended as a dated entry to WORKFLOW-RETRO.md. Invoke explicitly via /workflow-retro — this does not fire on its own.
 ---
 
-# Workflow Insights
+# Workflow Retro
 
 `engineering-insights` captures what you learned about the **code**. This
 skill captures what you learned about the **process** — how the agents you
 dispatched actually performed: how many ran, in what order, at what token
 cost, what tripped them up, and what a future dispatch should do
-differently. Output goes to the root [`WORKFLOW-INSIGHTS.md`](../../../WORKFLOW-INSIGHTS.md)
+differently. Output goes to the root [`WORKFLOW-RETRO.md`](../../../WORKFLOW-RETRO.md)
 (not to be confused with any package's `INSIGHTS.md` — see that file's own
 header for why a root-level log is correct here and not a convention break).
 
 This is a **manual-only** skill. It does not fire on its own — invoke it
-explicitly by typing `/workflow-insights` after a workflow that dispatched
+explicitly by typing `/workflow-retro` after a workflow that dispatched
 several `Agent` calls toward one goal (a `run-plan` execution, a
 `spec-creator` + `Explore` fan-out, a parallel review pass, etc.).
 
@@ -41,7 +41,7 @@ only source for half of what this skill reports.
 
 ### After — compile what's in the conversation
 
-When `/workflow-insights` is invoked, compile the retrospective **entirely
+When `/workflow-retro` is invoked, compile the retrospective **entirely
 from what is already in the current conversation** — do not re-read any
 subagent's raw transcript or `output_file`, and do not dispatch a new agent
 just to ask it questions after the fact. The data needed is either already
@@ -101,8 +101,8 @@ you take from one in the spec's own voice, grounded in this repo's code."*
 
 ## Entry format
 
-Append to the **top** of `WORKFLOW-INSIGHTS.md` (newest first), one entry
-per `/workflow-insights` invocation:
+Append to the **top** of `WORKFLOW-RETRO.md` (newest first), one entry
+per `/workflow-retro` invocation:
 
 ```
 ## YYYY-MM-DD — <short workflow label>

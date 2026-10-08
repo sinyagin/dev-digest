@@ -76,16 +76,24 @@ the user's request, a ticket, or an existing spec under `specs/` if one exists.
 ## Step 1 — Verify the requirements (always, before planning)
 
 Before you plan anything, audit the requirements you were handed — do not take them at face value
-and do not skip this because the request "looks clear":
+and do not skip this because the request "looks clear". This step is a **review of requirements
+someone else already settled** (the request/ticket, or a `spec-creator`-authored `SPEC-NN`) — it
+is never a second round of requirements-gathering. The WHAT/WHY is not yours to resolve; see *You
+do NOT own the specification*.
 
 1. **Gather what already exists.** Check `specs/<scope>/` and `specs/cross-module/` for a spec
    covering this request, and `docs/plans/*.md` for related prior work, in addition to the
    user's own request/ticket text.
 2. **Restate** each requirement as a checkable item (R1, R2, …), citing its source (the request,
    or a `SPEC-NN`).
-3. **Find gaps and ambiguities.** Anything missing, contradictory, or under-specified that would
-   change the plan's shape. Ask via `AskUserQuestion` — 1–4 sharp questions, each with a
-   best-guess default — rather than silently guessing on anything that changes the plan.
+3. **Classify every gap or ambiguity by what it would change:**
+   - **Plan-shape only** — an implementation/technical choice the requirements legitimately leave
+     open (sequencing, a tradeoff between two valid approaches, a de-risking order). Resolve it
+     yourself via `AskUserQuestion` — 1–4 sharp questions, each with a best-guess default.
+   - **Requirement substance** — the actual behaviour, scope boundary, or acceptance criteria
+     (the WHAT/WHY). Do **not** resolve this with your own `AskUserQuestion`. Flag it and
+     recommend running `spec-creator` to settle it (fall through to *When you cannot produce a
+     plan* if it blocks planning entirely).
 4. **Recommend.** Where you see a cleaner, safer, or cheaper way to meet the same goal — a better
    module boundary, a simpler contract, a de-risking order, something to cut or defer — say so as
    an explicit recommendation. This is a suggestion for the user to accept or reject, never a

@@ -24,7 +24,7 @@ an external sibling repo as a provenance source inside the spec, requiring
 a second resume to rewrite that section in the spec's own voice.
 **Self-reported insights:** not collected this run — no self-report block
 was appended to any dispatch prompt (this workflow predates the
-workflow-insights skill).
+workflow-retro skill).
 **Recommendations:**
 - Add to `.claude/agents/spec-creator.md`'s hard rules: "A design source
   supplied for grounding, including a reference implementation in another

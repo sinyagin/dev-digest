@@ -1,4 +1,4 @@
-# Workflow Insights
+# Workflow Retro
 
 Running log of retrospectives on multi-agent workflows — **not** the same as
 the per-package `INSIGHTS.md` code-insights logs (`server/`, `client/`,
@@ -7,12 +7,16 @@ about the *code*; this one captures what was learned about the *process* —
 how dispatched agents actually performed in a given workflow: how many ran,
 in what order, at what token cost, what tripped them up, and what a future
 dispatch should do differently. A root-level file is intentional here (see
-`.claude/skills/workflow-insights/SKILL.md`) — this is a single, repo-wide
+`.claude/skills/workflow-retro/SKILL.md`) — this is a single, repo-wide
 concern with no per-package ambiguity, unlike code insights.
 
-Captured via the `workflow-insights` skill (`/workflow-insights`), invoked
+Captured via the `workflow-retro` skill (`/workflow-retro`), invoked
 manually after a session that dispatched several `Agent` calls toward one
 goal. Newest entries at top.
+
+> Renamed from `workflow-insights` / `WORKFLOW-INSIGHTS.md` — entries below
+> written before the rename still refer to the skill by its old name; that
+> is the historical record and is left as written.
 
 <!-- Add entries below, e.g.:
 ## 2026-10-04 — short workflow label
