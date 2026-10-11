@@ -15,6 +15,7 @@
     "eval:delta": "tsx src/delta.ts",
     "eval:benchmark": "tsx src/records/benchmark.ts",
     "eval:scaffold": "tsx src/scaffold.ts",
+    "eval:ci-detect": "tsx src/ci/detect-cli.ts",
     "proxy:up": "scripts/litellm-proxy.sh up",
     "proxy:down": "scripts/litellm-proxy.sh down",
     "proxy:wait": "scripts/litellm-proxy.sh wait",

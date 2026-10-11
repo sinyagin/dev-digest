@@ -28,6 +28,9 @@ export interface Result {
   metrics: Metrics;
 }
 
+/** Tools that can change the filesystem or run arbitrary commands. */
+const MUTATING_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"];
+
 export interface RunOptions {
   systemPrompt?: string;
   allowedTools?: string[];
@@ -59,12 +62,18 @@ export async function runClaude(prompt: string, opts: RunOptions = {}): Promise<
     systemPrompt = (systemPrompt ?? "") + directive;
   }
 
+  // Under bypassPermissions, allowedTools only AUTO-APPROVES — it does not forbid anything else.
+  // A workflow session once used Edit to append a fabricated entry to the real server/INSIGHTS.md.
+  // Explicitly deny every mutating tool the caller didn't allow-list.
+  const disallowedTools = MUTATING_TOOLS.filter((t) => !allowedTools.includes(t));
+
   const options: Options = {
     model: opts.model ?? EVAL_MODEL,
     maxTurns: opts.maxTurns ?? MAX_TURNS,
     permissionMode: "bypassPermissions", // safe: evals only read/plan and tools are allow-listed
     systemPrompt,
     allowedTools,
+    disallowedTools,
     cwd: opts.cwd ?? REPO_ROOT,
     // Default: do NOT load on-disk config — isolates the injected artifact. workflowTask overrides.
     settingSources: opts.settingSources ?? [],
