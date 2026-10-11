@@ -397,7 +397,7 @@ How each `kind` asserts:
 | `dispatch` | `workflowTask` | `result.subagents` contains `expectSubagent` |
 | `activation` | `workflowTask` | `activated(result, skill) === shouldActivate` (positive **and** near-miss negative) |
 | `contrast` | treatment (real repo) **and** control (empty tmpdir, `settingSources:[]`) | `expectFileRead` read in treatment, NOT in control |
-| `trace` | `workflowTask`, **one** session | every provided `expectSubagents` / `expectSkills` / `expectFilesRead` / `expectText` holds (soft asserts — all misses reported) |
+| `trace` | `workflowTask`, **one** session | every provided `expectSubagents` / `expectSkills` / `expectFilesRead` / `expectText` holds (soft asserts — all misses reported). `advisory: true` → misses only warn (console + GitHub `::warning`), test passes |
 
 **Merging cases into one `trace`.** Put several numbered questions into one prompt and list all
 their expectations — one session instead of N. Don't merge an activation pair (the negative needs

@@ -26,3 +26,4 @@ export { logTrace, logVerdict } from "./logging/log.js";
 export { skillContent, agentContent } from "./artifacts/load.js";
 export { fixtureReader } from "./artifacts/fixture.js";
 export * from "./artifacts/paths.js";
+export { EVAL_MODEL } from "./config.js";
