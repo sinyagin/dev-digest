@@ -65,6 +65,13 @@ export type WorkflowCase =
       expectSubagents?: string[];
       expectSkills?: string[];
       expectFilesRead?: string[];
+      /**
+       * Substrings (case-insensitive) that must ALL appear in the final answer. Use for facts that
+       * only reach the model via memory the harness injects without a Read call — e.g. a nested
+       * `client/CLAUDE.md`, which never shows up in `filesRead`. Disables early stop: the answer
+       * has to be finished before it can be checked.
+       */
+      expectText?: string[];
       maxTurns?: number;
     };
 
@@ -149,34 +156,43 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         const subs = c.expectSubagents ?? [];
         const skls = c.expectSkills ?? [];
         const files = c.expectFilesRead ?? [];
+        const texts = c.expectText ?? [];
         const skillEngaged = (p: { skillsInvoked: string[]; filesRead: string[] }, skill: string) =>
           p.skillsInvoked.some((s) => s === skill || s.endsWith(`:${skill}`)) ||
           p.filesRead.some((f) => f.includes(`skills/${skill}/SKILL.md`));
         const result = await workflowTask(c.prompt, {
           maxTurns: c.maxTurns,
-          stopWhen: (p) =>
-            subs.every((s) => p.subagents.includes(s)) &&
-            skls.every((s) => skillEngaged(p, s)) &&
-            files.every((f) => p.filesRead.some((r) => r.includes(f))),
+          // Text is only checkable once the answer is written, so expectText forbids stopping early.
+          stopWhen: texts.length
+            ? undefined
+            : (p) =>
+                subs.every((s) => p.subagents.includes(s)) &&
+                skls.every((s) => skillEngaged(p, s)) &&
+                files.every((f) => p.filesRead.some((r) => r.includes(f))),
         });
         logTrace(c.name, result);
+        // expect.soft: a merged multi-question trace reports EVERY missed expectation, not just the first.
         try {
-          for (const sub of c.expectSubagents ?? []) {
-            expect(result.subagents, `subagents: ${result.subagents.join(", ")}`).toContain(sub);
+          for (const sub of subs) {
+            expect.soft(result.subagents, `subagents: ${result.subagents.join(", ")}`).toContain(sub);
           }
-          for (const skill of c.expectSkills ?? []) {
-            expect(
-              activated(result, skill),
-              `skill ${skill} not engaged | skills: ${result.skillsInvoked.join(", ")} | reads: ${result.filesRead.join(", ")}`,
-            ).toBe(true);
+          for (const skill of skls) {
+            expect
+              .soft(
+                activated(result, skill),
+                `skill ${skill} not engaged | skills: ${result.skillsInvoked.join(", ")} | reads: ${result.filesRead.join(", ")}`,
+              )
+              .toBe(true);
           }
-          for (const file of c.expectFilesRead ?? []) {
-            expect(
-              result.filesRead.some((f) => f.includes(file)),
-              `${file} not read | reads: ${result.filesRead.join(", ")}`,
-            ).toBe(true);
+          for (const file of files) {
+            expect
+              .soft(result.filesRead.some((f) => f.includes(file)), `${file} not read | reads: ${result.filesRead.join(", ")}`)
+              .toBe(true);
           }
-          expect(result.isError).toBe(false);
+          for (const t of texts) {
+            expect.soft(patternMatch(result.text, [t]), `answer lacks "${t}" | reads: ${result.filesRead.join(", ")}`).toBe(1);
+          }
+          expect.soft(result.isError).toBe(false);
         } finally {
           record(c.name, { result });
         }

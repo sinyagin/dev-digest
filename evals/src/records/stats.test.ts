@@ -1,5 +1,5 @@
 /**
- * The only non-model tests in the package — pure statistics math on fixed arrays.
+ * Non-model tests — pure statistics math on fixed arrays.
  *   pnpm vitest run src/records/stats.test.ts
  */
 

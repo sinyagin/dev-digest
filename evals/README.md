@@ -180,68 +180,60 @@ workflow cases:
    **indicative, not blocking** when running on non-Anthropic models. (On the Anthropic path the
    model invokes the Skill tool, so it passes.)
 
-> **Isolation note.** `workflowTask` runs with `settingSources:["project"]` + `bypassPermissions`
-> against the live repo. A model that decides to `Write` can touch real files (e.g. your local
-> memory dir) even though `WORKFLOW_ALLOWED_TOOLS` is a read-only list. In CI this is harmless (the
-> checkout is disposable); locally, prefer the Anthropic path or a throwaway clone for the workflow
-> tier.
+> **Isolation note.** Under `bypassPermissions`, `allowedTools` only *auto-approves* — it forbids
+> nothing. `runClaude` therefore also passes `disallowedTools` for every mutating tool (`Write`,
+> `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`) the caller didn't allow-list. Before this, a
+> positive `engineering-insights` activation case wrote a fabricated entry into the real
+> `server/INSIGHTS.md`.
 
-### Wiring it into GitHub Actions (per-PR)
+### GitHub Actions (per-PR) — `.github/workflows/evals.yml`
 
-The engine is CI-ready: bring the proxy up as a step, wait for it, run the tier, tear it down. Put
-the OpenRouter key in the repo's **Actions secrets** as `OPENROUTER_API_KEY` (Settings → Secrets and
-variables → Actions). Create `.github/workflows/<name>.yml` in your repo:
+The engine runs on CI as-is. The workflow only runs the evals for what the PR touched. The change
+detector (`src/ci/detect.ts`, pure + unit-tested; CLI `pnpm eval:ci-detect`) maps the diff to suites:
 
-```yaml
-name: evals
-on:
-  pull_request:
-    paths: ['evals/**', '.claude/**', 'CLAUDE.md']   # only when the harness/artifacts change
+| PR changes | Runs |
+|---|---|
+| `.claude/skills/<n>/**` or `evals/skills/<n>/**` | `skill:<n>` (content tier, direct OpenRouter, no proxy) |
+| `.claude/agents/<n>.md` or `evals/agents/<n>/**` | `agent:<n>` (tool tier, LiteLLM proxy) **+ workflow** |
+| any `CLAUDE.md` (root or nested), `.claude/settings.json`, `evals/workflow/**` | workflow tier |
+| a skill the workflow cases assert on (`skill:` / `expectSkills` — e.g. `engineering-insights`) | its skill evals (if any) **+ workflow** |
+| eval engine (`evals/src/**`, `package.json`, lockfile, `proxy/**`, `vitest.config.ts`, the workflow file) | everything that has evals (smoke) |
+| manual run (Actions → evals → Run workflow, `run_all`) | everything that has evals |
 
-permissions:
-  contents: read
+Plus an always-on **static** job (no model): `typecheck`, `vitest run src/` (stats + detector
+rules), `eval:quality` over every skill.
 
-jobs:
-  workflow-evals:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: evals
-    env:
-      EVAL_BACKEND: openrouter
-      OPENROUTER_BASE_URL: http://localhost:4000
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # repo Actions secret
-      EVAL_MODEL: google/gemini-2.5-flash
-      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 10 }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: evals/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+**SKIP, not fail.** A touched artifact that can't run is never tested; the detect step prints a
+line in its log and in the run's Step Summary, and the run stays green:
 
-      # --- the engine ---
-      - run: docker compose -f proxy/docker-compose.yml up -d   # OPENROUTER_API_KEY from job env
-      - run: pnpm proxy:wait                                     # block until the proxy answers
-      - run: pnpm eval:workflow                                  # or eval:agents / eval:skills / eval
-      - if: failure()
-        run: docker compose -f proxy/docker-compose.yml logs --tail 100
-      - if: always()
-        run: docker compose -f proxy/docker-compose.yml down
+```
+SKIP skill:zod — no evals                                   # no evals/skills/zod/*.eval.ts
+SKIP agent:architecture-reviewer-lite — artifact missing    # evals exist, .claude/agents/<n>.md doesn't
+SKIP all model evals — OPENROUTER_API_KEY secret is not available (fork PR or not configured)
 ```
 
+**Models.** Each is an OpenRouter slug, resolved as *manual-run input → repo Variable → default*:
+
+| Knob | Repo Variable | Default | Why |
+|---|---|---|---|
+| skill / agent model | `EVAL_MODEL` | `deepseek/deepseek-chat` | cheapest model verified on content + read traces |
+| judge | `EVAL_JUDGE_MODEL` | `google/gemini-2.5-flash` | different family than the model under test |
+| workflow tier | `EVAL_WORKFLOW_MODEL` | `google/gemini-2.5-flash` | only cheap model verified to dispatch subagents |
+
+Switch a model without a commit: Settings → Secrets and variables → Actions → **Variables**. One-off:
+Actions → evals → Run workflow, fill `model` / `judge_model` / `workflow_model`.
+
+**Setup.** Add the `OPENROUTER_API_KEY` repository **secret** (Settings → Secrets and variables →
+Actions). The Variables are optional.
+
 Notes:
-- ubuntu runners ship Docker + `docker compose`, so no extra setup is needed.
-- The proxy container reads `OPENROUTER_API_KEY` straight from the job `env` (which is fed by the
-  secret) — you don't pass it to `docker compose` explicitly.
-- Because tool tiers cost real tokens, gate on `paths:` (only when the harness/artifacts change) and
-  keep the case count small. For a stricter gate, split into a required `eval:agents`/`eval:skills`
-  job and a non-blocking `eval:workflow` job (activation flakiness, above).
+- **Run one eval folder with a trailing slash**: `pnpm vitest run agents/architecture-reviewer/`.
+  vitest filters are substrings, so without the slash `agents/architecture-reviewer` also runs
+  `architecture-reviewer-lite`.
+- Concurrency: skills `max-parallel: 2`, agents `max-parallel: 1`, workflow sequential
+  (`--no-file-parallelism`) with `--retry=1`, to stay under OpenRouter rate limits.
+- Every model job uploads `evals/results/` (records + full outputs) as a run artifact.
+- A new push to the PR cancels the previous run (`concurrency`), so stale runs don't spend tokens.
 
 ## Module layout — `src/` (the engine)
 
@@ -272,7 +264,7 @@ src/
   records/
     record.ts           # record() → results/records.jsonl + full output to results/outputs/<run>/<slug>.md
     stats.ts            # pure: calcStats(), loadRecords(), aggregate(), byConfig(), computeFlags()
-    stats.test.ts       # the only non-model unit tests — the statistics math
+    stats.test.ts       # non-model unit tests — the statistics math
     benchmark.ts        # eval:benchmark CLI (with vs without artifact)
   trend-reporter.ts     # vitest reporter: pass/fail rows → results/history.jsonl
   compare.ts            # eval:compare — run-flip view over history.jsonl
@@ -280,6 +272,10 @@ src/
   delta.ts              # eval:delta — diff two labeled repeat runs
   scaffold.ts           # eval:scaffold — list skills/agents, generate template eval files
   skill-quality.ts      # eval:quality — static SKILL.md gate (no model)
+  ci/
+    detect.ts           # pure: changed files → which skill/agent/workflow suites run, what to SKIP
+    detect-cli.ts       # eval:ci-detect — wires detect() to the fs + GitHub Actions outputs
+    detect.test.ts      # the detector rules (no model)
   dsl/
     describe.ts         # describeSkill / describeAgent / describeWorkflow — labeled groups
     case.ts             # SkillCase / AgentCase / WorkflowCase types; runSkillCases / runAgentCases / runWorkflowCases
@@ -324,8 +320,9 @@ evals/
     architecture-reviewer.cases.ts
     fixtures/auth-route-violation.diff
   workflow/
-    review-workflow.eval.ts        # describeWorkflow("review", () => runWorkflowCases(cases))
-    review-workflow.cases.ts       # export const cases: WorkflowCase[] = [ ... ]  (see below)
+    claude-md-routing.eval.ts      # describeWorkflow("claude-md-routing", () => runWorkflowCases(cases))
+    claude-md-routing.cases.ts     # export const cases: WorkflowCase[] = [ ... ]  (see below)
+    nested-claude-md.{eval,cases}.ts
 ```
 
 A thin eval file is the whole file:
@@ -400,6 +397,17 @@ How each `kind` asserts:
 | `dispatch` | `workflowTask` | `result.subagents` contains `expectSubagent` |
 | `activation` | `workflowTask` | `activated(result, skill) === shouldActivate` (positive **and** near-miss negative) |
 | `contrast` | treatment (real repo) **and** control (empty tmpdir, `settingSources:[]`) | `expectFileRead` read in treatment, NOT in control |
+| `trace` | `workflowTask`, **one** session | every provided `expectSubagents` / `expectSkills` / `expectFilesRead` / `expectText` holds (soft asserts — all misses reported) |
+
+**Merging cases into one `trace`.** Put several numbered questions into one prompt and list all
+their expectations — one session instead of N. Don't merge an activation pair (the negative needs
+a clean session), and don't combine `expectText` with a subagent dispatch: `expectText` disables
+early stop, so the nested subagent would run to completion.
+
+**Nested `CLAUDE.md` is invisible to `filesRead`.** Claude Code injects `client/CLAUDE.md` etc. as
+memory when the session enters that folder — no `Read` call happens. Assert on the answer instead
+(`expectText` with a fact stated only in the nested file), and name a file inside the folder in the
+prompt so the session actually enters it.
 
 Workflow records carry an empty `practices[]` (no judge) but a full trace; `contrast` writes two
 records — `<label>:treatment` and `<label>:control`.
@@ -414,8 +422,8 @@ pnpm eval                # all quality + workflow evals, once
 pnpm eval:skills         # just skills/
 pnpm eval:agents         # just agents/
 pnpm eval:workflow       # just workflow/
-pnpm vitest run skills/onion-architecture       # one artifact
-pnpm vitest run src/records/stats.test.ts       # the only non-model unit test (stats math)
+pnpm vitest run skills/onion-architecture/      # one artifact (trailing / — filters are substrings)
+pnpm vitest run src/                            # the non-model unit tests (stats math + CI detector)
 ```
 
 ### `eval:repeat` — stability of one thing
