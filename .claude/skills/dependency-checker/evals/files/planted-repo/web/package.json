@@ -1,0 +1,8 @@
+{
+  "name": "@acme/web",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "react": "^19.0.0", "zod": "^3.23.0" },
+  "devDependencies": { "typescript": "^5.7.0" }
+}
