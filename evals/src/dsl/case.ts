@@ -101,7 +101,8 @@ function runQualityCases(artifact: string, cases: QualityCase[], task: Task): vo
       try {
         // Cheap deterministic tier first — the grounding gate. When it fails the judge is skipped.
         if (c.grounding?.length) grounded = patternMatch(result.text, c.grounding);
-        if (c.practices?.length && (grounded === undefined || grounded === 1)) {
+        // A failed model call (429, timeout) has nothing to judge — skip the judge and fail as an error.
+        if (c.practices?.length && !result.isError && (grounded === undefined || grounded === 1)) {
           verdict = await llmJudge(result.text, c.practices);
           logVerdict(c.name, verdict);
         }
@@ -109,6 +110,7 @@ function runQualityCases(artifact: string, cases: QualityCase[], task: Task): vo
         record(c.name, { result, verdict, grounded, threshold });
       }
 
+      expect(result.isError, `model call failed: ${result.text}`).toBe(false);
       if (grounded !== undefined) {
         expect(grounded, `missing concrete evidence; output:\n${result.text}`).toBe(1);
       }
