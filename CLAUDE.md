@@ -74,3 +74,5 @@ boot — set via `server/.env` or the Settings UI at runtime.
   wipes every imported repo/review. Use `./scripts/e2e.sh` for a disposable
   stack instead.
 - `server/clones/**` — git-ignored runtime clone data.
+
+<!-- ci evals smoke test — throwaway, do not merge -->

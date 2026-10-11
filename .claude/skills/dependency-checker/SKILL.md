@@ -118,3 +118,5 @@ Keep it short. Do not paste the whole report:
 - Don't recommend replacing a framework (`next`, `fastify`, `drizzle-orm`)
   only because it is heavy. That is not actionable.
 - When the JSON has no data for a claim, leave the claim out.
+
+<!-- ci evals smoke test — throwaway, do not merge -->
