@@ -1,0 +1,53 @@
+{
+  "skill_name": "onion-architecture",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "bookmarks-route-db-and-service-fastify",
+      "prompt": "I just wrote a bookmarks module for the server — it's at server/src/modules/bookmarks/. Before I register it in modules/index.ts, review it and tell me what's structurally wrong with it and how to fix it.",
+      "expected_output": "Flags: (1) routes.ts imports drizzle-orm + db/schema and queries container.db in GET /bookmarks; (2) service.ts imports FastifyRequest and takes the raw request in create(); (3) repository.ts holds business rules (MAX_BOOKMARKS_PER_WORKSPACE cap and duplicate check throwing ConflictError).",
+      "files": [
+        "evals/files/bookmarks/"
+      ],
+      "assertions": [
+        "B1: Flags routes.ts importing drizzle-orm / db/schema.js and querying container.db directly in the GET /bookmarks handler",
+        "B1-sev: Rates the route→DB issue (B1) as CRITICAL",
+        "B2: Flags service.ts importing FastifyRequest / taking the raw request (req.body, getContext(req)) in create()",
+        "B2-sev: Rates the service→Fastify issue (B2) as CRITICAL",
+        "B3: Flags repository.ts holding business rules (the 200-bookmark cap and/or the duplicate-bookmark ConflictError) that belong in the service",
+        "B-fix: Proposes moving the list query into service + repository methods (e.g. service.list → repo.list)"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "digests-inline-adapter-and-cross-module-repo",
+      "prompt": "Here's a new digests module at server/src/modules/digests/. It works locally but my teammate says it'll be painful to test and maintain. Review it and list the issues.",
+      "expected_output": "Flags: (1) service.ts constructs new OctokitGitHubClient(token) inline instead of container.github(); (2) service.ts imports another module's repository file (../reviews/repository/review.repo.js) directly instead of container.reviewRepo; (3) a raw Drizzle DigestRow is returned through the service/route to the HTTP client without mapping to a @devdigest/shared DTO.",
+      "files": [
+        "evals/files/digests/"
+      ],
+      "assertions": [
+        "D1: Flags the inline `new OctokitGitHubClient(token)` in service.ts and says to use container.github() instead",
+        "D2: Flags service.ts importing another module's repository file (reviews/repository/review.repo.js) directly",
+        "D2-fix: Recommends going through the shared container repository (container.reviewRepo) for the cross-module read",
+        "D3: Flags that a raw Drizzle DigestRow is returned to the HTTP client without mapping to a DTO",
+        "D3-fix: Recommends a row→DTO mapper (e.g. toDigestDto in helpers.ts) and/or a @devdigest/shared contract for the response"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "notifications-repo-dto-and-service-db",
+      "prompt": "Review server/src/modules/notifications/ — does the code put things in the right places? List every problem you find.",
+      "expected_output": "Flags: (1) repository.ts imports @devdigest/shared DTOs and maps rows to them; (2) service.ts imports drizzle-orm + db/schema and calls container.db.update in markRead, bypassing the repository; (3) repository.ts mixes two aggregates (notifications and notification_preferences) in one file.",
+      "files": [
+        "evals/files/notifications/"
+      ],
+      "assertions": [
+        "N1: Flags repository.ts importing @devdigest/shared DTO types and mapping rows to DTOs inside the repository",
+        "N1-fix: Recommends moving the row→DTO mapping into helpers.ts / the service",
+        "N2: Flags service.ts markRead calling container.db.update(...) directly / importing drizzle-orm + db/schema, bypassing the repository",
+        "N3: Flags repository.ts mixing two aggregates (notifications and notification preferences) and suggests splitting into per-entity repo files"
+      ]
+    }
+  ]
+}

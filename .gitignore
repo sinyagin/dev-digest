@@ -19,6 +19,7 @@ coverage/
 .devdigest/cache/
 clones/
 .claude/skills/pr-self-review/.state/
+.claude/skills/*-workspace/
 playwright-report/
 test-results/
 
