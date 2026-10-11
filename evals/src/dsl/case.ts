@@ -72,6 +72,11 @@ export type WorkflowCase =
        * has to be finished before it can be checked.
        */
       expectText?: string[];
+      /**
+       * Non-blocking: misses are printed (plus a GitHub `::warning` annotation on CI) but the test
+       * passes. For behavior the target model reliably can't do yet, so it reports without gating PRs.
+       */
+      advisory?: boolean;
       maxTurns?: number;
     };
 
@@ -124,6 +129,16 @@ function runQualityCases(artifact: string, cases: QualityCase[], task: Task): vo
 export const runSkillCases = (skill: string, cases: SkillCase[]) => runQualityCases(skill, cases, skillTask);
 export const runAgentCases = (agent: string, cases: AgentCase[]) => runQualityCases(agent, cases, agentTask);
 
+/** Report an advisory case's misses without failing: console + a GitHub Actions annotation. */
+function warnAdvisory(name: string, misses: string[]): void {
+  if (!misses.length) return;
+  console.warn(`\n  ADVISORY (non-blocking) — ${name}:\n${misses.map((m) => `    - ${m}`).join("\n")}`);
+  if (process.env.GITHUB_ACTIONS) {
+    // Annotation text: newlines must be %0A-encoded.
+    console.log(`::warning title=advisory eval: ${name.replace(/[:,\n]/g, " ")}::${misses.join("%0A")}`);
+  }
+}
+
 export function runWorkflowCases(cases: WorkflowCase[]): void {
   for (const c of cases) {
     test(c.name, async () => {
@@ -173,30 +188,24 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
                 files.every((f) => p.filesRead.some((r) => r.includes(f))),
         });
         logTrace(c.name, result);
-        // expect.soft: a merged multi-question trace reports EVERY missed expectation, not just the first.
-        try {
-          for (const sub of subs) {
-            expect.soft(result.subagents, `subagents: ${result.subagents.join(", ")}`).toContain(sub);
-          }
-          for (const skill of skls) {
-            expect
-              .soft(
-                activated(result, skill),
-                `skill ${skill} not engaged | skills: ${result.skillsInvoked.join(", ")} | reads: ${result.filesRead.join(", ")}`,
-              )
-              .toBe(true);
-          }
-          for (const file of files) {
-            expect
-              .soft(result.filesRead.some((f) => f.includes(file)), `${file} not read | reads: ${result.filesRead.join(", ")}`)
-              .toBe(true);
-          }
-          for (const t of texts) {
-            expect.soft(patternMatch(result.text, [t]), `answer lacks "${t}" | reads: ${result.filesRead.join(", ")}`).toBe(1);
-          }
-          expect.soft(result.isError).toBe(false);
-        } finally {
-          record(c.name, { result });
+        // Collect EVERY missed expectation (a merged multi-question trace), then gate or just warn.
+        const reads = `reads: ${result.filesRead.join(", ")}`;
+        const misses = [
+          ...subs
+            .filter((sub) => !result.subagents.includes(sub))
+            .map((sub) => `subagent ${sub} not dispatched | subagents: ${result.subagents.join(", ")}`),
+          ...skls
+            .filter((skill) => !activated(result, skill))
+            .map((skill) => `skill ${skill} not engaged | skills: ${result.skillsInvoked.join(", ")} | ${reads}`),
+          ...files.filter((file) => !result.filesRead.some((r) => r.includes(file))).map((file) => `${file} not read | ${reads}`),
+          ...texts.filter((t) => patternMatch(result.text, [t]) !== 1).map((t) => `answer lacks "${t}" | ${reads}`),
+          ...(result.isError ? [`session errored: ${result.text.slice(0, 200)}`] : []),
+        ];
+        record(c.name, { result, extra: c.advisory ? { advisory: true, misses } : undefined });
+        if (c.advisory) {
+          warnAdvisory(c.name, misses);
+        } else {
+          for (const m of misses) expect.soft(false, m).toBe(true);
         }
       } else {
         // contrast: treatment (real harness) vs control (empty tmpdir, no on-disk config).
