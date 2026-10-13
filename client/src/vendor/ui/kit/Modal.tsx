@@ -1,5 +1,9 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { IconBtn } from "../primitives";
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   width = 720,
@@ -16,7 +20,59 @@ export function Modal({
   children?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  return (
+  const titleId = React.useId();
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Focus the first focusable element on mount; restore previous focus on unmount.
+  React.useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.contains(document.activeElement)) {
+      (dialog.querySelector<HTMLElement>(FOCUSABLE) ?? dialog).focus();
+    }
+    return () => {
+      if (previous && typeof previous.focus === "function") previous.focus();
+    };
+  }, []);
+
+  // Escape closes, unless a nested widget (e.g. an open dropdown) already handled it.
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented && onCloseRef.current) {
+        onCloseRef.current();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const onDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+    if (items.length === 0) {
+      e.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = items[0]!;
+    const last = items[items.length - 1]!;
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || active === dialog)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
+  // Portal to <body>: a modal opened from inside a card must not inherit the
+  // card's opacity / overflow / stacking context (e.g. a muted FindingCard).
+  const node = (
     <div style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", zIndex: 50, padding: 28 }}>
       <div
         onClick={onClose}
@@ -25,6 +81,10 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
+        ref={dialogRef}
+        onKeyDown={onDialogKeyDown}
         style={{
           position: "relative",
           width,
@@ -37,6 +97,7 @@ export function Modal({
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          outline: "none",
           animation: "ddpop .18s ease",
         }}
       >
@@ -50,7 +111,7 @@ export function Modal({
           }}
         >
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{title}</div>
+            <div id={titleId} style={{ fontSize: 16, fontWeight: 700 }}>{title}</div>
             {subtitle && (
               <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>{subtitle}</div>
             )}
@@ -66,4 +127,5 @@ export function Modal({
       </div>
     </div>
   );
+  return typeof document === "undefined" ? node : createPortal(node, document.body);
 }

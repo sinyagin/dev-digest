@@ -70,15 +70,29 @@ export class AgentsRepository {
     return row;
   }
 
-  /** Delete an agent (scoped to workspace). Versions/skill-links cascade;
-   *  agent_runs keep their history with agent_id set null. Returns false if
-   *  no such agent existed in the workspace. */
+  /** Delete an agent (scoped to workspace). Versions/skill-links and eval_runs
+   *  cascade via FK; agent_runs keep their history with agent_id set null.
+   *  eval_cases.owner_id is polymorphic (no FK), so the agent's cases are
+   *  deleted explicitly in the same transaction (D14). Returns false if no
+   *  such agent existed in the workspace. */
   async deleteById(workspaceId: string, id: string): Promise<boolean> {
-    const rows = await this.db
-      .delete(t.agents)
-      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
-      .returning({ id: t.agents.id });
-    return rows.length > 0;
+    return this.db.transaction(async (tx) => {
+      const rows = await tx
+        .delete(t.agents)
+        .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
+        .returning({ id: t.agents.id });
+      if (rows.length === 0) return false;
+      await tx
+        .delete(t.evalCases)
+        .where(
+          and(
+            eq(t.evalCases.workspaceId, workspaceId),
+            eq(t.evalCases.ownerKind, 'agent'),
+            eq(t.evalCases.ownerId, id),
+          ),
+        );
+      return true;
+    });
   }
 
   /** Insert an agent AND record version 1 in agent_versions (immutable snapshot). */
