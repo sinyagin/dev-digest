@@ -1,0 +1,23 @@
+diff --git a/server/src/modules/digests/service.ts b/server/src/modules/digests/service.ts
+index 3333333..4444444 100644
+--- a/server/src/modules/digests/service.ts
++++ b/server/src/modules/digests/service.ts
+@@ -1,14 +1,17 @@
+ import type { Container } from '../../platform/container.js';
+ import { NotFoundError } from '../../platform/errors.js';
+ 
+ export class DigestsService {
+   constructor(private container: Container) {}
+ 
+   async generate(workspaceId: string, repoId: string): Promise<string> {
+     const repo = await this.container.reposRepo.get(workspaceId, repoId);
+     if (!repo) throw new NotFoundError(`repo ${repoId} not found`);
+     const github = await this.container.github();
++    const model = process.env.DIGEST_MODEL ?? 'gpt-4o-mini';
++    const llm = await this.container.llm(model);
+     const pulls = await github.listPullRequests({ owner: repo.owner, name: repo.name });
+-    return `${pulls.length} pull requests updated.`;
++    const { text } = await llm.complete({ prompt: `Summarize ${pulls.length} PRs` });
++    return text;
+   }
+ }

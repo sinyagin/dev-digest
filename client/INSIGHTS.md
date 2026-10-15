@@ -4,6 +4,9 @@ Running log of non-obvious things learned while working in `@devdigest/web`:
 gotchas, dead ends, decisions that don't belong in the fixed map in
 [`CLAUDE.md`](CLAUDE.md). Newest entries at top.
 
+## 2026-10-11 — kit `FormField` does not link its label to the control [Context]
+`client/src/vendor/ui/kit/FormField.tsx:19` renders a bare `<label>` with no `htmlFor`/wrapping, and `Textarea` takes no id, so `getByLabelText` fails and the control has no accessible name. Pass `aria-label` on the input (as `EvalCaseModal` does for `TextInput`) or query by role/placeholder in tests. Also: server error codes arrive as `ApiError.code` (`client/src/lib/api.ts:8`); map known ones to i18n via `client/src/lib/eval-errors.ts` instead of showing `error.message`.
+
 <!-- Add entries below, e.g.:
 ## 2026-09-15 — short title
 What happened, what was tried, what actually worked or didn't, and why.
@@ -317,3 +320,9 @@ restart `pnpm dev`. Takeaway: never run `pnpm build` against a `client/` that
 already has a dev server running on the same checkout — use `pnpm typecheck`
 (safe, no shared build output) for a quick sanity check instead, and only run
 `pnpm build` if the dev server is stopped first (or in a separate worktree).
+
+## 2026-10-11 — First runtime import from `@devdigest/shared` breaks `next dev`/`next build` [Gotcha]
+The vendored barrel (`src/vendor/shared/index.ts`) uses ESM `./contracts/x.js` specifiers for `.ts` files. As long as the client only did `import type` from `@devdigest/shared`, the imports were erased and nothing resolved them. The eval modal was the first **runtime** import (Zod `EvalCaseInput.safeParse`), and Next's webpack failed with `Module not found: Can't resolve './contracts/findings.js'` — while vitest and `tsc` stayed green, so tests did not catch it. Fix: `webpack.resolve.extensionAlias = { '.js': ['.ts', '.tsx', '.js'] }` in `next.config.mjs`. Always run `pnpm build` after adding a value import from shared.
+
+## 2026-10-11 — Kit `Modal` must portal to `<body>` [Gotcha]
+`position: fixed` does not escape an ancestor's `opacity` (or `transform`/`filter`/`overflow` stacking context). `EvalCaseModal` is mounted inside `FindingCard`, which gets `opacity: 0.6` once a finding is accepted/dismissed — the modal rendered translucent with the cards bleeding through. Fixed by `createPortal(node, document.body)` in `src/vendor/ui/kit/Modal.tsx` (vendored copy — re-apply on re-vendor). Same root cause as the FindingCard React warning: `borderColor` is itself a shorthand, so don't mix it with `borderLeftColor`.

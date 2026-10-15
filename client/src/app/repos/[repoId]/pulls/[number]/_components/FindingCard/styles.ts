@@ -4,13 +4,18 @@ import type { CSSProperties } from "react";
 export const s = {
   card: (focused: boolean, sevColor: string, muted: boolean): CSSProperties => ({
     borderRadius: 8,
-    // All-longhand (never mix `border` shorthand with `borderLeft` — React warns
-    // about updating shorthand + non-shorthand on the same rerender).
+    // Per-side longhands only. `borderColor`/`borderWidth` are themselves
+    // shorthands, so mixing them with `borderLeftColor`/`borderLeftWidth` makes
+    // React warn when the focus color changes on rerender.
     borderStyle: "solid",
-    borderColor: focused ? sevColor : "var(--border)",
-    borderWidth: 1,
-    borderLeftWidth: 3,
+    borderTopColor: focused ? sevColor : "var(--border)",
+    borderRightColor: focused ? sevColor : "var(--border)",
+    borderBottomColor: focused ? sevColor : "var(--border)",
     borderLeftColor: sevColor,
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderLeftWidth: 3,
     background: "var(--bg-elevated)",
     overflow: "hidden",
     opacity: muted ? 0.6 : 1,
@@ -78,6 +83,19 @@ export const s = {
     gap: 8,
     marginTop: 14,
     flexWrap: "wrap",
+  } satisfies CSSProperties,
+  evalHint: {
+    fontSize: 12,
+    color: "var(--text-muted)",
+    margin: "8px 0 0",
+  } satisfies CSSProperties,
+  srOnly: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    overflow: "hidden",
+    clip: "rect(0 0 0 0)",
+    whiteSpace: "nowrap",
   } satisfies CSSProperties,
   composer: {
     marginTop: 12,

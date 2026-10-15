@@ -22,6 +22,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [pr-self-review](pr-self-review/SKILL.md) | Shared | Routes a branch's diff to the matching skills (UI/backend) and gates opening a PR on any CRITICAL finding, enforced by a PreToolUse hook |
 | [run-plan](run-plan/SKILL.md) | Shared | Runs an approved Implementation Plan end-to-end: implementer agents by DAG, then architecture-reviewer + plan-verifier in parallel, then a bounded fix loop. Never pushes or merges |
 | [workflow-retro](workflow-retro/SKILL.md) | Shared | Retrospective on a multi-agent workflow — agent count/order/tokens/duration, self-reported friction, and concrete recommendations — appended to WORKFLOW-RETRO.md. Manual-only: `/workflow-retro` |
+| [dependency-checker](dependency-checker/SKILL.md) | Shared | Audits every package's npm deps — Mermaid map of alias/external edges, own + transitive sizes, unused deps, version drift, vendored-copy drift — and writes a P0–P3 prioritized report to `reports/dependencies/` |
 
 ## What Are Skills?
 

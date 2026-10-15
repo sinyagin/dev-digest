@@ -14,6 +14,7 @@ trigger rules ("Use proactively when…").
 | [`implementer`](./implementer.md) | sonnet | Implements ONE task from a plan (backend or UI), self-verifies | Yes |
 | [`test-writer`](./test-writer.md) | sonnet | Writes unit + integration tests (backend + reviewer-core + client), self-verifies | Yes |
 | [`architecture-reviewer`](./architecture-reviewer.md) | opus | Read-only structural/architecture review of a diff or file set | No |
+| [`architecture-reviewer-lite`](./architecture-reviewer-lite.md) | opus | **Eval-only A/B variant** — `architecture-reviewer` minus the per-finding rule-citation hard rule (see `evals/INSIGHTS.md`) | No |
 | [`security-reviewer`](./security-reviewer.md) | opus | Read-only security audit of a diff or file set | No |
 | [`plan-verifier`](./plan-verifier.md) | opus | Read-only requirements-completion / traceability check | No |
 | [`doc-writer`](./doc-writer.md) | sonnet | Writes documentation (Diátaxis + Mermaid), knows where docs belong | Yes |

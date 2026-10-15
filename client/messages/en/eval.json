@@ -28,7 +28,27 @@
       "cost": "Cost"
     },
     "pass": "pass",
-    "fail": "fail"
+    "fail": "fail",
+    "agents": {
+      "heading": "Agents",
+      "columns": {
+        "agent": "Agent",
+        "cases": "Cases",
+        "recall": "Recall",
+        "precision": "Precision",
+        "citation": "Citation",
+        "traces": "Traces passed",
+        "lastRun": "Last run"
+      },
+      "nonRankingNote": "Agents are not ranked against each other; each is measured on its own eval cases."
+    },
+    "recentRunsAll": "Recent eval runs · all agents",
+    "runAllAgents": "Run all agents",
+    "runAllAgentsConfirm": "Run {agents, plural, one {# agent} other {# agents}} ({executions, plural, one {# execution} other {# executions}})?",
+    "agentProgress": "{agent}: {done} of {total} cases",
+    "agentFailure": "{agent} failed: {reason}",
+    "loadError": "Could not load eval metrics.",
+    "runAllStarted": "Eval run started"
   },
   "caseEditor": {
     "newCase": "New eval case",
@@ -71,7 +91,32 @@
     "run": "Run",
     "running": "Running…",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "passing": "{passed} / {total} passing",
+    "viewDashboard": "View dashboard",
+    "runAll": "Run all",
+    "runAllConfirm": "Run {cases, plural, one {# case} other {# cases}}? Estimated cost {cost}.",
+    "state": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "neverRun": "Never run",
+      "errored": "Errored"
+    },
+    "expectedGot": "expected {expected, plural, one {# finding} other {# findings}}, got {actual}",
+    "mustNotFlag": "must not flag",
+    "deleteConfirm": "Delete this eval case? This cannot be undone.",
+    "emptyState": "No eval cases yet. Turn an accepted or dismissed finding into one, or create a case manually.",
+    "neverRunState": "Cases exist but none has run yet. Run all to get your first metrics.",
+    "oneRunState": "Only one run so far. Run again to see trends and deltas.",
+    "announceStarted": "Eval run started",
+    "announceFinished": "Eval run finished: {passed} of {total} passed",
+    "announceFailed": "Eval run failed",
+    "loadingEstimate": "Estimating cost…",
+    "erroredReason": "last run errored: {reason} — run again",
+    "expectType": {
+      "mustFind": "MUST FIND",
+      "mustNotFlag": "MUST NOT FLAG"
+    }
   },
   "page": {
     "crumbSkillsLab": "Skills Lab",
@@ -80,5 +125,121 @@
     "crumbEvals": "Evals",
     "crumbNewCase": "New case",
     "crumbEvalCase": "Eval case"
+  },
+  "modal": {
+    "header": "Turn finding into eval case · {agent}",
+    "source": "Source",
+    "sourceFinding": "Finding {id} on {pr}",
+    "tabs": {
+      "diff": "Diff",
+      "files": "Files",
+      "prMeta": "PR meta"
+    },
+    "expectedOutput": "Expected output",
+    "expectedValid": "valid JSON",
+    "expectedInvalid": "invalid JSON: {field}",
+    "skeletonHelper": "Start from the skeleton below and edit the expected findings.",
+    "runOnSave": "Run this case on save",
+    "runCase": "Run case",
+    "running": "Running…",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "result": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "expectedVsActual": "Expected {expected}, got {actual}",
+      "matched": "Matched {count, plural, one {# finding} other {# findings}}",
+      "duration": "{duration}s",
+      "cost": "{cost}"
+    },
+    "errors": {
+      "ungrounded": "Finding is not grounded in the diff: {reason}",
+      "untriaged": "Accept or dismiss this finding first.",
+      "noAgent": "No agent is available for this finding.",
+      "exists": "An eval case for this finding already exists.",
+      "noCases": "This agent has no eval cases yet.",
+      "providerKeyMissing": "No API key is configured for the model this eval needs. Add one in Settings.",
+      "runInFlight": "An eval run is already in progress for this agent."
+    },
+    "skeletonButton": "Insert skeleton",
+    "loadingDraft": "Preparing eval case…",
+    "notes": "Notes",
+    "notesPlaceholder": "Why this case exists, what it guards against (optional)"
+  },
+  "metrics": {
+    "recall": "Recall",
+    "precision": "Precision",
+    "citationAccuracy": "Citation accuracy",
+    "tracesPassed": "Traces passed",
+    "tracesPassedValue": "{passed}/{total}",
+    "na": "n/a",
+    "deltaUp": "up {value} points",
+    "deltaDown": "down {value} points",
+    "deltaZero": "no change",
+    "deltaPts": "{value} pts"
+  },
+  "history": {
+    "heading": "Run history",
+    "columns": {
+      "ranAt": "Ran at",
+      "version": "Prompt version",
+      "recall": "Recall",
+      "precision": "Precision",
+      "citation": "Citation",
+      "traces": "Traces",
+      "cost": "Cost",
+      "status": "Status",
+      "duration": "Duration"
+    },
+    "status": {
+      "passed": "All passed",
+      "running": "Running",
+      "errored": "Errored: {reason}",
+      "completed": "Completed"
+    }
+  },
+  "detail": {
+    "agentSelector": "Agent",
+    "runEval": "Run eval",
+    "trendHeading": "Metric trend",
+    "trendCaption": "Recall, precision and citation accuracy per run",
+    "runsHeading": "Runs",
+    "compare": "Compare",
+    "secondRunNeeded": "Run the eval at least twice to compare results."
+  },
+  "banner": {
+    "metrics": {
+      "recall": "Recall",
+      "precision": "Precision",
+      "citationAccuracy": "Citation accuracy",
+      "tracesPassed": "Traces passed"
+    },
+    "direction": {
+      "up": "up",
+      "down": "down"
+    },
+    "message": "{metric} {direction} {delta} pts on v{version}",
+    "cause": "caused by {cases, plural, one {# case} other {# cases}}",
+    "dismiss": "Dismiss"
+  },
+  "compare": {
+    "title": "Compare runs",
+    "metric": "Metric",
+    "old": "Old",
+    "new": "New",
+    "delta": "Δ",
+    "metrics": {
+      "recall": "Recall",
+      "precision": "Precision",
+      "citationAccuracy": "Citation accuracy",
+      "tracesPassed": "Traces passed"
+    },
+    "caseSetDiffers": "Case set differs: {added, plural, one {# case added} other {# cases added}}, {removed, plural, one {# case removed} other {# cases removed}}",
+    "promptUnchanged": "Prompt unchanged between these runs",
+    "removedLabel": "Removed",
+    "addedLabel": "Added",
+    "commonCases": "Compared on {count, plural, one {# common case} other {# common cases}}",
+    "cost": "Cost"
   }
 }

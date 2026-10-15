@@ -21,6 +21,7 @@ pnpm typecheck
 pnpm exec vitest run --exclude '**/*.it.test.ts'     # unit, no Docker
 pnpm exec vitest run .it.test                        # integration, needs Docker
 pnpm test                                            # both
+pnpm verify:l06                                      # eval pipeline: typecheck + eval-* tests + eval.it (DB part self-skips w/o Docker; blank provider keys when running .it suites)
 ```
 
 ## Map

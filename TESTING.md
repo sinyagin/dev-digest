@@ -31,6 +31,7 @@ If a test wouldn't catch a class of regression we care about, we don't write it.
 | server-integration | `server/` | integration (real Postgres) | vitest | `server-integration.yml` | **yes** |
 | reviewer-core | `reviewer-core/` | unit (engine) | vitest | `reviewer-core.yml` | no |
 | e2e web | `e2e/` | browser e2e (deterministic) | agent-browser + `run.ts` | `e2e-web.yml` | yes (stack) |
+| evals | `evals/` | harness evals (skills / agents / CLAUDE.md workflow) on OpenRouter, only for what the PR touched — see [`evals/README.md`](evals/README.md#github-actions-per-pr--githubworkflowsevalsyml) | vitest + Claude Agent SDK | `evals.yml` | yes (LiteLLM proxy) |
 
 ## What each suite covers
 
@@ -67,6 +68,7 @@ cd reviewer-core && npm test
 cd server && pnpm exec vitest run --exclude '**/*.it.test.ts'   # unit, no Docker
 cd server && pnpm exec vitest run .it.test                      # integration, needs Docker
 cd server && pnpm test                                          # both
+cd server && pnpm verify:l06                                    # eval pipeline: typecheck + eval tests (+ eval.it if Docker is up)
 
 # browser e2e (needs the full stack + agent-browser CLI)
 ./scripts/dev.sh
@@ -80,6 +82,9 @@ cd e2e && npm install && npm test
   (`vitest run --exclude '**/*.it.test.ts'`); the integration lane selects only
   it (`vitest run .it.test`). A DB-backed test that imports `test/helpers/pg.ts`
   must use the `.it.test.ts` suffix.
+- **DB-backed `.it` suites can time out when `server/.env` carries real provider
+  keys / `GITHUB_TOKEN`.** Run them with keys blanked:
+  `OPENAI_API_KEY= ANTHROPIC_API_KEY= OPENROUTER_API_KEY= GITHUB_TOKEN= pnpm verify:l06`.
 - **`server/package.json` is `skip-worktree`** (a local variant diverges from the
   committed file). CI therefore invokes the split with
   `pnpm exec vitest run …` rather than relying on committed `test:unit` /

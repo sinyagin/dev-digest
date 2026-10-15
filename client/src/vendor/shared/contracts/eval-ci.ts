@@ -1,92 +1,15 @@
 import { z } from 'zod';
 import { Verdict, Finding } from './findings.js';
-import { EvalRun, EvalOwnerKind, Conformance } from './knowledge.js';
+import { Conformance } from './knowledge.js';
 
 /**
  * A4 — Eval / CI / Compose / Conformance API contracts (L06).
  *
  * These EXTEND the barrel; they do not modify existing contract files. The base
- * `EvalRun`, `EvalCase`, `EvalOwnerKind`, `Conformance` live in `knowledge.ts`;
- * here we add the *API-facing* request/response shapes (records persisted in
- * `eval_runs`, `composed_reviews`, `ci_installations`, `ci_runs`,
- * `conformance_checks`) plus the eval-dashboard aggregate.
+ * `Conformance` lives in `knowledge.ts`; the Eval contracts moved to `eval.ts`.
+ * Here we add the *API-facing* request/response shapes (records persisted in
+ * `composed_reviews`, `ci_installations`, `ci_runs`, `conformance_checks`).
  */
-
-// ===========================================================================
-// Eval — case input + persisted run record + dashboard
-// ===========================================================================
-
-/** Create/update payload for an eval case (id + owner resolved by the route). */
-export const EvalCaseInput = z.object({
-  owner_kind: EvalOwnerKind,
-  owner_id: z.string(),
-  name: z.string().min(1),
-  input_diff: z.string().default(''),
-  input_files: z.unknown().nullish(),
-  input_meta: z.unknown().nullish(),
-  expected_output: z.unknown(),
-  notes: z.string().nullish(),
-});
-export type EvalCaseInput = z.infer<typeof EvalCaseInput>;
-
-/** A persisted eval run row (one execution of a case), returned by the API. */
-export const EvalRunRecord = z.object({
-  id: z.string(),
-  case_id: z.string(),
-  case_name: z.string().nullish(),
-  ran_at: z.string(),
-  actual_output: z.unknown(),
-  pass: z.boolean().nullable(),
-  recall: z.number().nullable(),
-  precision: z.number().nullable(),
-  citation_accuracy: z.number().nullable(),
-  duration_ms: z.number().int().nullable(),
-  cost_usd: z.number().nullable(),
-});
-export type EvalRunRecord = z.infer<typeof EvalRunRecord>;
-
-/** Result of running a single case: the metrics (EvalRun) + the persisted row id. */
-export const EvalRunResult = z.object({
-  run_id: z.string(),
-  case_id: z.string(),
-  result: EvalRun,
-});
-export type EvalRunResult = z.infer<typeof EvalRunResult>;
-
-/** One point on the dashboard trend (per run, chronological). */
-export const EvalTrendPoint = z.object({
-  ran_at: z.string(),
-  recall: z.number(),
-  precision: z.number(),
-  citation_accuracy: z.number(),
-  pass_rate: z.number(),
-  cost_usd: z.number().nullable(),
-});
-export type EvalTrendPoint = z.infer<typeof EvalTrendPoint>;
-
-/** Aggregate dashboard for an owner (agent/skill) or the whole workspace. */
-export const EvalDashboard = z.object({
-  owner_kind: EvalOwnerKind.nullable(),
-  owner_id: z.string().nullable(),
-  cases_total: z.number().int(),
-  current: z.object({
-    recall: z.number(),
-    precision: z.number(),
-    citation_accuracy: z.number(),
-    traces_passed: z.number().int(),
-    traces_total: z.number().int(),
-    cost_usd: z.number().nullable(),
-  }),
-  delta: z.object({
-    recall: z.number(),
-    precision: z.number(),
-    citation_accuracy: z.number(),
-  }),
-  trend: z.array(EvalTrendPoint),
-  recent_runs: z.array(EvalRunRecord),
-  alert: z.string().nullable(),
-});
-export type EvalDashboard = z.infer<typeof EvalDashboard>;
 
 // ===========================================================================
 // Compose Review

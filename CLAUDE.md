@@ -39,6 +39,23 @@ Prereqs: Node ≥22 · pnpm ≥10 · Docker. Migrations do **not** run on boot.
 Keys (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GITHUB_TOKEN`) are optional to
 boot — set via `server/.env` or the Settings UI at runtime.
 
+## Evals — after editing the harness
+
+Changing a skill, agent, or any `CLAUDE.md` changes agent behavior — run
+its evals before calling it done (from `evals/`; default backend is the
+Claude Code subscription, no key needed). Trailing `/` matters — vitest
+filters are substrings.
+
+| You changed | Run |
+|---|---|
+| `.claude/skills/<n>/**` | `pnpm vitest run "skills/<n>/"` + `pnpm eval:quality` |
+| `.claude/agents/<n>.md` | `pnpm vitest run "agents/<n>/"` + `pnpm eval:workflow` |
+| any `CLAUDE.md`, `.claude/settings.json` | `pnpm eval:workflow` |
+| `evals/src/**` (engine) | `pnpm typecheck && pnpm vitest run src/` |
+
+No evals for that artifact → nothing to run (say so). Unsure → `CHANGED_FILES="$(git diff --name-only main)" pnpm eval:ci-detect`
+prints exactly what CI will run. Full rules: [`evals/README.md`](evals/README.md#github-actions-per-pr--githubworkflowsevalsyml).
+
 ## Map
 
 - [`server/`](server/CLAUDE.md) — Fastify API + Drizzle/Postgres, `:3001`
@@ -54,6 +71,8 @@ boot — set via `server/.env` or the Settings UI at runtime.
   `server/src/db/seed-prompts.ts`
 - [`specs/`](specs/) — Spec-Driven Development specs (one subfolder per
   package, plus `cross-module/`), authored by the `spec-creator` subagent
+- [`evals/`](evals/README.md) — harness evals for `.claude/skills`,
+  `.claude/agents` and `CLAUDE.md` behavior (vitest + Claude Agent SDK)
 - `scripts/` — `dev.sh` (boot everything), `e2e.sh` (hermetic e2e stack)
 - `docker-compose.yml` — the one Dockerized service (Postgres + pgvector)
 - `TESTING.md` — full test/CI strategy across all four packages

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Conformance, Onboarding, Eval, Memory, Conventions, Skills,
+ * Conformance, Onboarding, Memory, Conventions, Skills,
  * Agents and their DTOs.
  */
 
@@ -45,43 +45,6 @@ export const Onboarding = z.object({
   sections: z.array(OnboardingSection),
 });
 export type Onboarding = z.infer<typeof Onboarding>;
-
-// ---- Eval ----
-export const EvalPerTrace = z.object({
-  name: z.string(),
-  pass: z.boolean(),
-  expected: z.unknown(),
-  actual: z.unknown(),
-});
-export type EvalPerTrace = z.infer<typeof EvalPerTrace>;
-
-export const EvalRun = z.object({
-  recall: z.number().min(0).max(1),
-  precision: z.number().min(0).max(1),
-  citation_accuracy: z.number().min(0).max(1),
-  traces_passed: z.number().int(),
-  traces_total: z.number().int(),
-  duration_ms: z.number().int(),
-  cost_usd: z.number().nullable(),
-  per_trace: z.array(EvalPerTrace),
-});
-export type EvalRun = z.infer<typeof EvalRun>;
-
-export const EvalOwnerKind = z.enum(['skill', 'agent']);
-export type EvalOwnerKind = z.infer<typeof EvalOwnerKind>;
-
-export const EvalCase = z.object({
-  id: z.string(),
-  owner_kind: EvalOwnerKind,
-  owner_id: z.string(),
-  name: z.string(),
-  input_diff: z.string(),
-  input_files: z.unknown(),
-  input_meta: z.unknown(),
-  expected_output: z.unknown(),
-  notes: z.string().nullish(),
-});
-export type EvalCase = z.infer<typeof EvalCase>;
 
 // ---- Memory ----
 export const MemoryScope = z.enum(['repo', 'global', 'team']);

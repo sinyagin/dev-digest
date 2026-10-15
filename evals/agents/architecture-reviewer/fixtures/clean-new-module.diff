@@ -1,0 +1,71 @@
+diff --git a/server/src/modules/tags/routes.ts b/server/src/modules/tags/routes.ts
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/server/src/modules/tags/routes.ts
+@@ -0,0 +1,17 @@
++import type { FastifyInstance } from 'fastify';
++import type { ZodTypeProvider } from 'fastify-type-provider-zod';
++import type { Tag } from '@devdigest/shared';
++import { getContext } from '../_shared/context.js';
++
++export default async function tagsRoutes(appBase: FastifyInstance) {
++  const app = appBase.withTypeProvider<ZodTypeProvider>();
++
++  app.get('/tags', async (req): Promise<Tag[]> => {
++    const { workspaceId } = await getContext(app.container, req);
++    return app.container.tags.list(workspaceId);
++  });
++}
+diff --git a/server/src/modules/tags/service.ts b/server/src/modules/tags/service.ts
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/server/src/modules/tags/service.ts
+@@ -0,0 +1,14 @@
++import type { Tag } from '@devdigest/shared';
++import type { Container } from '../../platform/container.js';
++import { toTagDto } from './helpers.js';
++
++export class TagsService {
++  constructor(private container: Container) {}
++
++  async list(workspaceId: string): Promise<Tag[]> {
++    const rows = await this.container.tagsRepo.list(workspaceId);
++    return rows.map(toTagDto);
++  }
++}
+diff --git a/server/src/modules/tags/repository.ts b/server/src/modules/tags/repository.ts
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/server/src/modules/tags/repository.ts
+@@ -0,0 +1,15 @@
++import { asc, eq } from 'drizzle-orm';
++import type { Db } from '../../db/client.js';
++import * as t from '../../db/schema.js';
++import type { TagRow } from '../../db/rows.js';
++
++export class TagsRepository {
++  constructor(private db: Db) {}
++
++  async list(workspaceId: string): Promise<TagRow[]> {
++    return this.db
++      .select()
++      .from(t.tags)
++      .where(eq(t.tags.workspaceId, workspaceId))
++      .orderBy(asc(t.tags.name));
++  }
++}
+diff --git a/server/src/modules/tags/helpers.ts b/server/src/modules/tags/helpers.ts
+new file mode 100644
+index 0000000..8888888
+--- /dev/null
++++ b/server/src/modules/tags/helpers.ts
+@@ -0,0 +1,6 @@
++import type { Tag } from '@devdigest/shared';
++import type { TagRow } from '../../db/rows.js';
++
++export function toTagDto(row: TagRow): Tag {
++  return { id: row.id, name: row.name, color: row.color, created_at: row.createdAt.toISOString() };
++}
