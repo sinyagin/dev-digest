@@ -27,12 +27,17 @@ const BENIGN_PROMPT = `Audit this diff against DevDigest's documented structural
 
 ${fx("benign-refactor.diff")}`;
 
+const auditPrompt = (fixture: string) =>
+  `Audit this diff against DevDigest's documented structural contracts.\n\n${fx(fixture)}`;
+
+// Cases are tagged [recall] (a planted violation must be found) or [precision] (nothing — or
+// nothing in scope — should be flagged), so the A/B delta can be read as recall vs precision.
 // Shared across the strict (architecture-reviewer) and relaxed (architecture-reviewer-lite)
 // variants so the two agents are graded on the exact same task — the only thing that should
 // move between the two runs is whether "cites the specific documented rule" keeps passing.
 export const cases: AgentCase[] = [
   {
-    name: "flags both violations in the checkout diff with severity and a citable rule",
+    name: "[recall] flags both violations in the checkout diff with severity and a citable rule",
     kind: "quality",
     prompt: REVIEW_PROMPT,
     practices: [
@@ -44,10 +49,10 @@ export const cases: AgentCase[] = [
       "ends with an explicit PASS/FAIL gate verdict based on whether any critical or high findings exist",
     ],
     threshold: 1.0,
-    maxTurns: 25,
+    maxTurns: 10,
   },
   {
-    name: "does not fabricate an architecture finding for the out-of-scope security-shaped change",
+    name: "[precision] does not fabricate an architecture finding for the out-of-scope security-shaped change",
     kind: "quality",
     prompt: REVIEW_PROMPT,
     practices: [
@@ -55,10 +60,10 @@ export const cases: AgentCase[] = [
       "stays scoped to structural/layering/DI findings and does not comment on naming, style, or test coverage",
     ],
     threshold: 1.0,
-    maxTurns: 25,
+    maxTurns: 10,
   },
   {
-    name: "cites the DevDigest-specific rule identifier for reviewer-core violations",
+    name: "[recall] cites the DevDigest-specific rule identifier for reviewer-core violations",
     kind: "quality",
     prompt: REVIEWER_CORE_PROMPT,
     practices: [
@@ -70,10 +75,10 @@ export const cases: AgentCase[] = [
       "ends with an explicit PASS/FAIL gate verdict based on whether any critical or high findings exist",
     ],
     threshold: 1.0,
-    maxTurns: 25,
+    maxTurns: 10,
   },
   {
-    name: "does not fabricate a documented-rule violation for a benign rename",
+    name: "[precision] does not fabricate a documented-rule violation for a benign rename",
     kind: "quality",
     prompt: BENIGN_PROMPT,
     practices: [
@@ -82,6 +87,56 @@ export const cases: AgentCase[] = [
       "the final gate verdict is PASS",
     ],
     threshold: 1.0,
-    maxTurns: 25,
+    maxTurns: 10,
+  },
+  {
+    name: "[recall] flags a route that queries the DB and holds business logic",
+    kind: "quality",
+    prompt: auditPrompt("route-db-query.diff"),
+    practices: [
+      "flags labels/routes.ts importing drizzle-orm / db/schema.js and querying `app.container.db` inside the GET /labels handler",
+      "flags the branching (seed defaults when empty, filtering archived rows) inside the route handler as business logic that belongs in the service",
+      "names the specific documented rule identifier for EVERY finding (e.g. `business-logic-in-routes`, `inward-only-dependencies`) rather than describing the problem only in prose",
+      "ends with a FAIL gate verdict",
+    ],
+    threshold: 1.0,
+    maxTurns: 10,
+  },
+  {
+    name: "[recall] flags process.env read outside the secrets provider",
+    kind: "quality",
+    prompt: auditPrompt("process-env-in-service.diff"),
+    practices: [
+      "flags `process.env.DIGEST_MODEL` read in digests/service.ts as a violation (only the LocalSecretsProvider may read process.env)",
+      "names the exact documented rule identifier `no-process-env-outside-secrets-provider` for that finding rather than only describing it in prose",
+      "quotes the offending line verbatim as evidence",
+      "does not flag `this.container.github()` / `this.container.llm(model)` as DI violations — they are container-resolved, which is the documented pattern",
+    ],
+    threshold: 1.0,
+    maxTurns: 10,
+  },
+  {
+    name: "[precision] reports no violations for a correctly layered new module",
+    kind: "quality",
+    prompt: auditPrompt("clean-new-module.diff"),
+    practices: [
+      "reports no critical/high/medium violations for the tags module (routes → container service → container repository → helpers.ts DTO mapping)",
+      "does not fabricate a documented-rule violation where the diff violates none of the checked rules",
+      "the final gate verdict is PASS",
+    ],
+    threshold: 1.0,
+    maxTurns: 10,
+  },
+  {
+    name: "[precision] stays silent on a style-only change (out of scope)",
+    kind: "quality",
+    prompt: auditPrompt("style-only.diff"),
+    practices: [
+      "does not report a critical/high/medium finding for the snake_case rename, the `==` comparison, the manual for-loop or the TODO about a missing test — style, naming and test coverage are out of scope",
+      "does not fabricate a documented-rule violation where the diff violates none of the checked rules",
+      "the final gate verdict is PASS",
+    ],
+    threshold: 1.0,
+    maxTurns: 10,
   },
 ];

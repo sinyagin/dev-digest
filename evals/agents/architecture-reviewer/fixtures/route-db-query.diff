@@ -1,0 +1,29 @@
+diff --git a/server/src/modules/labels/routes.ts b/server/src/modules/labels/routes.ts
+index 1111111..2222222 100644
+--- a/server/src/modules/labels/routes.ts
++++ b/server/src/modules/labels/routes.ts
+@@ -1,15 +1,24 @@
+ import type { FastifyInstance } from 'fastify';
+ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
++import { eq } from 'drizzle-orm';
++import * as t from '../../db/schema.js';
+ import { getContext } from '../_shared/context.js';
+ import { LabelsService } from './service.js';
+ 
+ export default async function labelsRoutes(appBase: FastifyInstance) {
+   const app = appBase.withTypeProvider<ZodTypeProvider>();
+   const service = app.container.labels;
+ 
+   app.get('/labels', async (req) => {
+     const { workspaceId } = await getContext(app.container, req);
+-    return service.list(workspaceId);
++    const rows = await app.container.db
++      .select()
++      .from(t.labels)
++      .where(eq(t.labels.workspaceId, workspaceId));
++    if (rows.length === 0) {
++      return service.seedDefaults(workspaceId);
++    }
++    return rows.filter((r) => !r.archived);
+   });
+ }

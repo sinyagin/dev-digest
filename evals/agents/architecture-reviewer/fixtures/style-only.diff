@@ -1,0 +1,17 @@
+diff --git a/server/src/modules/reviews/service.ts b/server/src/modules/reviews/service.ts
+index 9999999..aaaaaaa 100644
+--- a/server/src/modules/reviews/service.ts
++++ b/server/src/modules/reviews/service.ts
+@@ -40,12 +40,14 @@ export class ReviewService {
+-  async countBlocking(reviewId: string): Promise<number> {
+-    const findings = await this.container.reviewRepo.findingsFor(reviewId);
+-    return findings.filter((f) => f.severity === 'critical' || f.severity === 'high').length;
++  // TODO: add a unit test for this
++  async count_blocking(review_id: string): Promise<number> {
++    const data = await this.container.reviewRepo.findingsFor(review_id);
++    let n = 0;
++    for (let i = 0; i < data.length; i++) {
++      if (data[i].severity == 'critical' || data[i].severity == 'high') n++;
++    }
++    return n;
+   }
