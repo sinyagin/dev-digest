@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Verdict, Finding } from './findings.js';
-import { Conformance, Provider, CiFailOn } from './knowledge.js';
+import { Conformance, Provider, CiFailOn, MemoryKind } from './knowledge.js';
 
 /**
  * A4 — Eval / CI / Compose / Conformance API contracts (L06).
@@ -56,6 +56,10 @@ export type ComposeReviewPreview = z.infer<typeof ComposeReviewPreview>;
 export const CiTarget = z.enum(['gha', 'circle', 'jenkins', 'cli']);
 export type CiTarget = z.infer<typeof CiTarget>;
 
+/** How the runner publishes its result on the PR. */
+export const CiPostAs = z.enum(['github_review', 'pr_comment', 'none']);
+export type CiPostAs = z.infer<typeof CiPostAs>;
+
 /** One generated file in the CI bundle (path + editable contents). */
 export const CiFile = z.object({
   path: z.string(),
@@ -73,7 +77,12 @@ export type CiFile = z.infer<typeof CiFile>;
  * resolved to `.devdigest/skills/<slug>.md`.
  */
 export const AgentManifest = z.object({
+  /** Manifest format marker (bumped only on a breaking manifest change). */
+  format: z.literal('devdigest-agent/v1'),
   name: z.string().min(1),
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  /** The agent version this manifest was exported from. */
+  agent_version: z.number().int().min(1),
   provider: Provider.default('openrouter'),
   model: z.string().min(1),
   system_prompt: z.string(),
@@ -92,6 +101,13 @@ export const AgentManifest = z.object({
 export type AgentManifest = z.infer<typeof AgentManifest>;
 /** Caller-facing input type — `.default()` fields stay optional. */
 export type AgentManifestInput = z.input<typeof AgentManifest>;
+
+/** One line of `.devdigest/memory.jsonl` — content-only, repo-scoped (D12). */
+export const MemoryRecord = z.object({
+  kind: MemoryKind,
+  content: z.string(),
+});
+export type MemoryRecord = z.infer<typeof MemoryRecord>;
 
 /** Request body for `POST /agents/:id/export-ci`. */
 export const CiExportInput = z.object({
@@ -145,19 +161,37 @@ export const CiRun = z.object({
 export type CiRun = z.infer<typeof CiRun>;
 
 /**
- * The artifact shape uploaded by the CI action (`devdigest-result.json`).
- * Ingested back on refresh to populate `ci_runs` (L06).
+ * The artifact shape uploaded by the runner (`devdigest-result.json`). Untrusted
+ * third-party JSON on ingestion — the server verifies it (D6) before storing.
  */
 export const CiResultArtifact = z.object({
-  findings_count: z.number().int(),
-  critical: z.number().int().nullish(),
-  warning: z.number().int().nullish(),
-  suggestion: z.number().int().nullish(),
+  findings_count: z.number().int().nonnegative(),
+  critical: z.number().int().nonnegative().nullish(),
+  warning: z.number().int().nonnegative().nullish(),
+  suggestion: z.number().int().nonnegative().nullish(),
   cost_usd: z.number().nullable(),
-  duration_ms: z.number().int().nullish(),
-  agent: z.string(),
-  version: z.string().nullish(),
+  duration_ms: z.number().int().nonnegative().nullish(),
+  /** Agent display name. */
+  agent: z.string().max(200),
   pr_number: z.number().int().nullish(),
+  status: z.enum(['succeeded', 'failed']),
+  error_category: z.enum(['manifest', 'missing_secret', 'llm', 'github', 'internal']).nullish(),
+  verdict: Verdict.nullable(),
+  blockers: z.number().int().nonnegative(),
+  agent_slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  agent_version: z.number().int().min(1),
+  /** SHA-256 (hex) of the manifest file the run used. */
+  manifest_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  model: z.string().max(200),
+  dependencies: z.object({
+    runner: z.string().max(100),
+    reviewer_core: z.string().max(100),
+    node: z.string().max(100),
+  }),
+  /** `owner/name` the run executed in. */
+  repository: z.string().max(200),
+  commit_sha: z.string().regex(/^[0-9a-f]{40,64}$/),
+  workflow_run_id: z.number().int().nonnegative(),
 });
 export type CiResultArtifact = z.infer<typeof CiResultArtifact>;
 
