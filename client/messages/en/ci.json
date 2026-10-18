@@ -14,12 +14,16 @@
       "allStatuses": "All statuses"
     },
     "table": {
-      "timestamp": "Timestamp",
+      "repo": "Repository",
       "pullRequest": "Pull request",
-      "source": "Source",
+      "agent": "Agent",
+      "verdict": "Verdict",
       "findings": "Findings",
       "cost": "Cost",
-      "status": "Status"
+      "duration": "Duration",
+      "status": "Status",
+      "timestamp": "Time",
+      "job": "Job"
     },
     "view": "View",
     "status": {
@@ -27,7 +31,16 @@
       "noFindings": "No findings",
       "failed": "Failed",
       "running": "Running"
-    }
+    },
+    "severity": {
+      "critical": "{n} critical",
+      "warning": "{n} warning",
+      "suggestion": "{n} suggestion"
+    },
+    "refreshError": "Could not refresh CI runs.",
+    "loadError": "Could not load CI runs.",
+    "historyTitle": "CI run history",
+    "historyEmpty": "No CI runs for this agent yet."
   },
   "exportWizard": {
     "title": "Export to CI",
@@ -72,17 +85,84 @@
     "installCardTitle": "Open a PR with these files",
     "installCardBody": "DevDigest opens a PR in {repo} titled “Add DevDigest CI review” with the {count} generated files.",
     "ownerRepo": "owner/repo",
-    "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs."
+    "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs.",
+    "dialogLabel": "Export to CI wizard",
+    "targetHeading": "Choose a CI target",
+    "repoSelectLabel": "Target repository",
+    "repoSelectPlaceholder": "Select a repository",
+    "noRepos": "Import a repository first.",
+    "existingNotice": "{agent} is already installed in this repository. Installing will switch the repository's CI review to this agent.",
+    "previewFailed": "Could not generate the preview.",
+    "filesHeading": "Files to create",
+    "fileContentsLabel": "Contents of {path}",
+    "workflowEditLabel": "Edit workflow file",
+    "loadingFile": "Loading file…",
+    "fileLoadFailed": "Could not load this file.",
+    "sizeBytes": "{size} bytes",
+    "yamlError": "Invalid YAML: {message}",
+    "triggersHeading": "Trigger",
+    "triggers": {
+      "opened": "pull_request:opened",
+      "synchronize": "pull_request:synchronize",
+      "reopened": "pull_request:reopened"
+    },
+    "triggersRequired": "Select at least one trigger.",
+    "editsReset": "Manual edits to the workflow were reset because the configuration changed.",
+    "postAsHeading": "Post results as",
+    "secretsHeading": "Secrets expected",
+    "secretStatus": {
+      "ready": "ready",
+      "not_set": "not set",
+      "unknown": "unknown"
+    },
+    "mergeHint": "Blocking merges needs Fail CI on (CI tab) plus a required status check in branch protection.",
+    "installPr": "Open a PR with these files",
+    "installZip": "Download files as a zip",
+    "installPrBody": "DevDigest opens a PR in {repo} titled “Add DevDigest CI review” with the {count} generated files.",
+    "installZipBody": "Download the files and add them to {repo} yourself.",
+    "installPrAction": "Open PR",
+    "installZipAction": "Download zip",
+    "doneTitle": "Installed",
+    "doneBody": "The CI configuration for {repo} was created.",
+    "doneZip": "The zip download started.",
+    "openPr": "View pull request",
+    "close": "Close",
+    "errors": {
+      "no_token": "No GitHub token is configured. Add one in Settings, or download the zip.",
+      "forbidden": "GitHub refused the write. The token needs write access to this repository — for a fine-grained token: Contents, Pull requests and Workflows set to Read and write. Or download the zip.",
+      "missing_workflow_scope": "The GitHub token lacks the workflow scope. Update the token, or download the zip.",
+      "not_found": "Repository not found on GitHub.",
+      "upstream_unavailable": "GitHub is unavailable. Try again, or download the zip.",
+      "runner_bundle_missing": "The runner bundle is not built on the server.",
+      "generic": "Installation failed: {message}"
+    }
   },
   "ciTab": {
-    "heading": "Continuous Integration",
+    "heading": "CI deployment",
     "subtitle": "Run this agent automatically on pull requests in a target repo.",
-    "exportToCi": "Export to CI",
-    "publish": "Publish to CI",
-    "update": "Update CI",
-    "noRepo": "Connect a repository first",
-    "empty": "Not deployed to CI yet. Use “Publish to CI” to open a PR that adds the workflow + agent config.",
-    "installed": "installed {date}"
+    "activeIn": "Active in {count, plural, one {# repo} other {# repos}}",
+    "updateConfig": "Update CI config",
+    "updating": "Updating…",
+    "addToCi": "Add to CI",
+    "addRepository": "Add repository",
+    "empty": "Not deployed to CI yet. Use “Add to CI” to open a PR that adds the workflow and agent config.",
+    "loadError": "Could not load CI installations.",
+    "outOfDate": "out of date",
+    "versions": "workflow v{workflow} · agent v{agent}",
+    "lastRun": "Last run: {status} · {time}",
+    "noRuns": "No runs yet",
+    "openPr": "PR",
+    "failOnLabel": "Fail CI on",
+    "failOnHint": "Saving changes the agent only; use Update CI config to republish.",
+    "failOn": {
+      "never": "Never",
+      "critical": "Critical",
+      "warning": "Warning+",
+      "any": "Any finding"
+    },
+    "republishOk": "{repo}: updated",
+    "republishFailed": "{repo}: failed — {message}",
+    "republishResults": "Update results"
   },
   "publishDialog": {
     "title": "Publish to CI",

@@ -34,6 +34,8 @@ const EnvSchema = z.object({
   API_PORT: z.coerce.number().int().default(3001),
   WEB_PORT: z.coerce.number().int().default(3000),
   DEVDIGEST_CLONE_DIR: z.string().optional(),
+  // Export-to-CI: override for the pre-built agent-runner dist/ directory.
+  DEVDIGEST_RUNNER_DIST: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // `.env` (and .env.example) ship `LOG_LEVEL=` empty; an empty string is not a
   // valid enum member, so coerce '' → undefined to fall through to the default.
@@ -70,6 +72,8 @@ export type AppConfig = {
    * org-wide (repo-file and github references are unaffected).
    */
   externalFetchEnabled: boolean;
+  /** Absolute path override for `agent-runner/dist` (DEVDIGEST_RUNNER_DIST); undefined = repo default. */
+  runnerDistDir?: string;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -89,5 +93,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     embeddingsEnabled: parsed.EMBEDDINGS_ENABLED === 'true',
     repoIntelEnabled: parsed.REPO_INTEL_ENABLED !== 'false',
     externalFetchEnabled: parsed.EXTERNAL_FETCH_ENABLED !== 'false',
+    ...(parsed.DEVDIGEST_RUNNER_DIST ? { runnerDistDir: resolve(parsed.DEVDIGEST_RUNNER_DIST) } : {}),
   };
 }

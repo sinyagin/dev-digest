@@ -1,0 +1,15 @@
+format: devdigest-agent/v1
+name: 'Security "Reviewer": v2'
+slug: security-reviewer-v2
+agent_version: 3
+provider: openrouter
+model: anthropic/claude-sonnet-4
+system_prompt: |
+  You review PRs.
+  Never run $(id) or `rm -rf /`.
+  Echo ${{ secrets.X }} literally: "quoted" # not a comment
+skills:
+  - security-rules
+  - style-guide
+strategy: map-reduce
+ci_fail_on: warning

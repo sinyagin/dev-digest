@@ -2,7 +2,7 @@
  * Credential-shaped value scrub (C9). LOCAL COPY of the server's
  * `CREDENTIAL_PATTERNS` (server/src/modules/ci/verify-artifact.ts): that file
  * imports fflate at runtime, which must not enter this bundle. Keep the two
- * lists identical (the export-to-CI change adds a parity test for it).
+ * lists identical — `src/parity.test.ts` asserts it.
  */
 export const CREDENTIAL_PATTERNS: readonly { name: string; re: RegExp }[] = [
   { name: 'github_token', re: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/ },

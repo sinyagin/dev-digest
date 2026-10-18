@@ -11,10 +11,15 @@ import type {
   OpenPrPayload,
   CommitFilesPayload,
   IssueMeta,
+  WorkflowRunInfo,
 } from '@devdigest/shared';
 import { withRetry, withTimeout } from '../../platform/resilience.js';
 
 const TIMEOUT = 30_000;
+/** Hard cap on an artifact download (the result file itself is ≤ 256 KB). */
+const MAX_ARTIFACT_BYTES = 5 * 1024 * 1024;
+/** GitHub's max page size for workflow-run listing is 100; we never need more than 50. */
+const MAX_RUNS = 50;
 
 function mapStatus(state: string, merged: boolean | undefined): PrStatus {
   if (merged) return 'merged';
@@ -286,15 +291,22 @@ export class OctokitGitHubClient implements GitHubClient {
 
           // New tree layered on the parent's tree (so unrelated files are kept).
           const parentCommit = await g.getCommit({ owner, repo: name, commit_sha: parentSha });
+          // Blobs first (not inline tree `content`): an empty file such as the
+          // CI bundle's empty memory.jsonl is only reliably accepted as a blob.
+          const blobs = await Promise.all(
+            payload.files.map((f) =>
+              g.createBlob({ owner, repo: name, content: f.contents, encoding: 'utf-8' }),
+            ),
+          );
           const tree = await g.createTree({
             owner,
             repo: name,
             base_tree: parentCommit.data.tree.sha,
-            tree: payload.files.map((f) => ({
+            tree: payload.files.map((f, i) => ({
               path: f.path,
-              mode: '100644',
-              type: 'blob',
-              content: f.contents,
+              mode: '100644' as const,
+              type: 'blob' as const,
+              sha: blobs[i]!.data.sha,
             })),
           });
 
@@ -361,6 +373,93 @@ export class OctokitGitHubClient implements GitHubClient {
       body: res.data.body,
       state: res.data.state,
     };
+  }
+
+  async getDefaultBranch(repo: RepoRef): Promise<string> {
+    const res = await withRetry(() =>
+      withTimeout(this.octokit.rest.repos.get({ owner: repo.owner, repo: repo.name }), TIMEOUT),
+    );
+    return res.data.default_branch;
+  }
+
+  async listRepoSecretNames(repo: RepoRef): Promise<string[]> {
+    // A 403/404 (token lacks admin on the repo) propagates: the caller maps it to "unknown".
+    const secrets = await withRetry(() =>
+      withTimeout(
+        this.octokit.paginate(this.octokit.rest.actions.listRepoSecrets, {
+          owner: repo.owner,
+          repo: repo.name,
+          per_page: 100,
+        }),
+        TIMEOUT,
+      ),
+    );
+    return secrets.map((s) => s.name);
+  }
+
+  async listWorkflowRuns(
+    repo: RepoRef,
+    workflowFile: string,
+    limit: number,
+  ): Promise<WorkflowRunInfo[]> {
+    const res = await withRetry(() =>
+      withTimeout(
+        this.octokit.rest.actions.listWorkflowRuns({
+          owner: repo.owner,
+          repo: repo.name,
+          workflow_id: workflowFile,
+          per_page: Math.max(1, Math.min(limit, MAX_RUNS)),
+        }),
+        TIMEOUT,
+      ),
+    );
+    return res.data.workflow_runs.map((r) => ({
+      id: r.id,
+      status: r.status ?? 'unknown',
+      conclusion: r.conclusion ?? null,
+      headSha: r.head_sha,
+      htmlUrl: r.html_url,
+      createdAt: r.created_at,
+      prNumber: r.pull_requests?.[0]?.number ?? null,
+    }));
+  }
+
+  async downloadRunArtifact(
+    repo: RepoRef,
+    runId: number,
+    name: string,
+  ): Promise<Uint8Array | null> {
+    const list = await withRetry(() =>
+      withTimeout(
+        this.octokit.rest.actions.listWorkflowRunArtifacts({
+          owner: repo.owner,
+          repo: repo.name,
+          run_id: runId,
+          name,
+          per_page: 10,
+        }),
+        TIMEOUT,
+      ),
+    );
+    const artifact = list.data.artifacts.find((a) => a.name === name && !a.expired);
+    if (!artifact) return null;
+    if (artifact.size_in_bytes > MAX_ARTIFACT_BYTES) {
+      const err = new Error('artifact exceeds the size cap');
+      err.name = 'ArtifactTooLargeError';
+      throw err;
+    }
+    const dl = await withRetry(() =>
+      withTimeout(
+        this.octokit.rest.actions.downloadArtifact({
+          owner: repo.owner,
+          repo: repo.name,
+          artifact_id: artifact.id,
+          archive_format: 'zip',
+        }),
+        TIMEOUT,
+      ),
+    );
+    return new Uint8Array(dl.data as ArrayBuffer);
   }
 
   async currentLogin(): Promise<string> {

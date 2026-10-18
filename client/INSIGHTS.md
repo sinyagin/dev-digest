@@ -4,6 +4,9 @@ Running log of non-obvious things learned while working in `@devdigest/web`:
 gotchas, dead ends, decisions that don't belong in the fixed map in
 [`CLAUDE.md`](CLAUDE.md). Newest entries at top.
 
+## 2026-10-17 — CI wizard: preview POST doubles as the AC-5 lookup, and `EvalsTab.test` pins the TABS list [Context]
+`existing_installation` (the AC-5 "different agent already installed" notice) only comes back from `POST /agents/:id/ci/preview`, but the notice lives on the Target step, so `ExportWizard` fires the preview on repo selection (not on entering Preview) and reuses it for later steps (`.../CiTab/_components/ExportWizard/ExportWizard.tsx`, `loadPreview`). A request counter ref drops stale responses. Also, adding the `ci` tab required updating the `TABS` order assertion in `EvalsTab.test.tsx:128`, which hard-codes the tab list.
+
 ## 2026-10-11 — kit `FormField` does not link its label to the control [Context]
 `client/src/vendor/ui/kit/FormField.tsx:19` renders a bare `<label>` with no `htmlFor`/wrapping, and `Textarea` takes no id, so `getByLabelText` fails and the control has no accessible name. Pass `aria-label` on the input (as `EvalCaseModal` does for `TextInput`) or query by role/placeholder in tests. Also: server error codes arrive as `ApiError.code` (`client/src/lib/api.ts:8`); map known ones to i18n via `client/src/lib/eval-errors.ts` instead of showing `error.message`.
 
