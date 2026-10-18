@@ -1,11 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import { RunRequest } from '@devdigest/shared';
 import type { RunEvent } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
-import { NotFoundError } from '../../platform/errors.js';
+import { AppError, NotFoundError } from '../../platform/errors.js';
 import { ReviewService } from './service.js';
+import { MultiAgentService } from './multi-agent-service.js';
 
 /**
  * reviews module.
@@ -14,13 +16,22 @@ import { ReviewService } from './service.js';
  *   GET    /runs/:id/trace                             → the single-document RunTrace
  *   GET    /pulls/:id/reviews                          → persisted reviews + findings for a PR
  *   GET    /pulls/:id/smart-diff                       → files grouped by risk role (no LLM call)
- *   POST   /findings/:id/(accept|dismiss)              → finding actions
+ *   POST   /findings/:id/(accept|dismiss|learn)        → finding actions
+ *   GET    /multi-agent-runs?repoId=&prId=&limit=      → recent MultiAgentRunSummary[], newest first
+ *   GET    /multi-agent-runs/:id                       → MultiAgentRun (computed on read)
+ *   GET    /agents/estimates                           → per-agent run estimates
  */
-const FINDING_ACTIONS = ['accept', 'dismiss'] as const;
+const MultiAgentRunsQuery = z.object({
+  repoId: z.string().uuid().optional(),
+  prId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+const FINDING_ACTIONS = ['accept', 'dismiss', 'learn'] as const;
 export default async function reviewsRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
   const service = new ReviewService(container);
+  const multiAgent = new MultiAgentService(container);
 
   // ---- Run a review (manual trigger) -------------------------------
   // Tight per-route limit: each call can fan out to expensive LLM runs.
@@ -30,18 +41,45 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     { schema: { params: IdParams }, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (req) => {
     const { workspaceId } = await getContext(container, req);
-    const body = RunRequest.parse(req.body ?? {});
+    const parsed = RunRequest.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      // agentIds shape errors (non-uuid, <2, >8) are a 400 per AC-14/AC-75.
+      if (parsed.error.issues.some((i) => i.path[0] === 'agentIds')) {
+        throw new AppError('invalid_run_request', 'agentIds must be a list of 2-8 agent UUIDs', 400, parsed.error.issues);
+      }
+      throw parsed.error;
+    }
+    const body = parsed.data;
     const targets = await service.resolveTargets(workspaceId, {
       ...(body.agentId !== undefined ? { agentId: body.agentId } : {}),
       ...(body.all !== undefined ? { all: body.all } : {}),
+      ...(body.agentIds !== undefined ? { agentIds: body.agentIds } : {}),
     });
-    const { runs, reviews } = await service.runReview(
+    const { runs, reviews, multi_agent_run_id } = await service.runReview(
       workspaceId,
       req.params.id,
       targets,
       req.log,
+      { multiAgent: body.agentIds !== undefined },
     );
-    return { pr_id: req.params.id, runs, reviews };
+    return { pr_id: req.params.id, runs, reviews, multi_agent_run_id };
+  });
+
+  // ---- Multi-agent run: computed on read (no LLM call, no write) ----------
+  app.get('/multi-agent-runs', { schema: { querystring: MultiAgentRunsQuery } }, async (req) => {
+    const { workspaceId } = await getContext(container, req);
+    const { repoId, prId, limit } = req.query;
+    return multiAgent.list(workspaceId, { ...(repoId ? { repoId } : {}), ...(prId ? { prId } : {}), limit });
+  });
+  app.get('/multi-agent-runs/:id', { schema: { params: IdParams } }, async (req) => {
+    const { workspaceId } = await getContext(container, req);
+    return multiAgent.get(workspaceId, req.params.id);
+  });
+
+  // ---- Per-agent run estimates (static path wins over /agents/:id) --------
+  app.get('/agents/estimates', async (req) => {
+    const { workspaceId } = await getContext(container, req);
+    return multiAgent.estimates(workspaceId);
   });
 
   // ---- SSE: live run events (replay buffer first, then live; ends on done) -

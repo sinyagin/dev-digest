@@ -53,8 +53,17 @@ export const ReviewRunResponse = z.object({
   pr_id: z.string(),
   runs: z.array(ReviewRunTarget),
   reviews: z.array(ReviewRecord),
+  /** Set when the trigger created a multi-agent parent run; null for single/all runs. */
+  multi_agent_run_id: z.string().nullable(),
 });
 export type ReviewRunResponse = z.infer<typeof ReviewRunResponse>;
+
+/** Response of POST /findings/:id/learn (SPEC-04 D9). */
+export const LearnFindingResponse = z.object({
+  finding: FindingRecord,
+  memory_id: z.string(),
+});
+export type LearnFindingResponse = z.infer<typeof LearnFindingResponse>;
 
 /**
  * Intent persisted for a PR (the Intent plus the pr_id it scopes, and the

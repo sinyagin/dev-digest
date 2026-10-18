@@ -6,7 +6,7 @@ import { SectionLabel, Button, Toggle } from "@devdigest/ui";
 import { DiffViewer, SmartDiffViewer, type DiffCommentApi, type DiffFindingApi } from "@/components/diff-viewer";
 import { usePrComments, useCreatePrComment, useSmartDiff, useFindingAction } from "@/lib/hooks/reviews";
 import { notify } from "@/lib/toast";
-import { FindingCard } from "../FindingCard";
+import { FindingCard } from "@/components/finding-card";
 import type { FindingRecord, PrFile } from "@devdigest/shared";
 
 interface DiffTabProps {

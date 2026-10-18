@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/prReview.json";
-import evalMessages from "../../../../../../../../messages/en/eval.json";
+import messages from "../../../messages/en/prReview.json";
+import evalMessages from "../../../messages/en/eval.json";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FindingCard } from "./FindingCard";
 
@@ -28,11 +28,13 @@ const FINDING: FindingRecord = {
   dismissed_at: null,
 };
 
-function renderWithIntl(ui: React.ReactElement) {
+function renderWithIntl(ui: React.ReactElement, qc = new QueryClient()) {
   return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      {ui}
-    </NextIntlClientProvider>,
+    <QueryClientProvider client={qc}>
+      <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
+        {ui}
+      </NextIntlClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -127,5 +129,31 @@ describe("FindingCard — Turn into eval case", () => {
     renderEval({ ...FINDING, dismissed_at: "2026-01-01T00:00:00Z" });
     fireEvent.click(screen.getByRole("button", { name: "Turn into eval case" }));
     expect(await screen.findByDisplayValue("existing-case-name")).toBeInTheDocument();
+  });
+});
+
+describe("FindingCard — Learn", () => {
+  it("posts to /findings/:id/learn, then reads Learned (disabled), also after remount", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ finding: FINDING, memory_id: "m1" }), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { unmount } = renderWithIntl(<FindingCard f={FINDING} defaultExpanded onAction={() => {}} />, qc);
+
+    expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Learn" }));
+
+    const learned = await screen.findByRole("button", { name: "Learned" });
+    expect(learned).toBeDisabled();
+    expect(String(fetchMock.mock.calls[0]![0])).toContain("/findings/f1/learn");
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe("POST");
+
+    unmount();
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded onAction={() => {}} />, qc);
+    expect(screen.getByRole("button", { name: "Learned" })).toBeDisabled();
+    vi.unstubAllGlobals();
   });
 });

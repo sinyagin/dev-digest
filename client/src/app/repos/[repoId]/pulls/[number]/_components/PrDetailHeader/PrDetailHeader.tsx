@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Icon, Avatar, Badge, Button, Tabs } from "@devdigest/ui";
 import { RunReviewDropdown } from "../RunReviewDropdown";
 import { s } from "./styles";
@@ -9,6 +10,7 @@ import type { PrDetail } from "@/lib/types";
 interface PrDetailHeaderProps {
   pr: PrDetail;
   prId: string | null;
+  repoId: string;
   tab: string;
   findingsCount: number;
   /** github.com PR URL; null when the repo's full_name isn't known yet. */
@@ -16,18 +18,24 @@ interface PrDetailHeaderProps {
   onSetTab: (tab: string) => void;
   onRunStart: () => void;
   onRunsStarted: () => void;
+  /** Set only when this PR already has a multi-agent run: opens its latest
+      results (navigation only — starts no run). */
+  onOpenMultiAgent?: (() => void) | null;
 }
 
 export function PrDetailHeader({
   pr,
   prId,
+  repoId,
   tab,
   findingsCount,
   githubUrl,
   onSetTab,
   onRunStart,
   onRunsStarted,
+  onOpenMultiAgent,
 }: PrDetailHeaderProps) {
+  const t = useTranslations("prReview.runReview");
   const handleRunStart = useCallback(() => {
     onRunStart();
   }, [onRunStart]);
@@ -89,9 +97,16 @@ export function PrDetailHeader({
           >
             View on GitHub
           </Button>
+          {onOpenMultiAgent && (
+            <Button kind="ghost" size="sm" icon="Users" onClick={onOpenMultiAgent}>
+              {t("viewMultiAgentResults")}
+            </Button>
+          )}
           {prId && (
             <RunReviewDropdown
               prId={prId}
+              repoId={repoId}
+              prNumber={pr.number}
               warnMerged={pr.status === "merged" || pr.status === "closed"}
               onRunStart={handleRunStart}
               onRunsStarted={handleRunsStarted}

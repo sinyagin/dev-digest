@@ -145,7 +145,9 @@ export class ReviewRunExecutor {
       // intentBlock remains undefined; reviewPullRequest proceeds without it.
     }
 
-    for (const { agent, runId } of jobs) {
+    // Agents run in parallel (SPEC-04 D3). Diff + intent were computed once above;
+    // per-job errors are caught inside, so allSettled never rejects here.
+    const runOne = async ({ agent, runId }: { agent: AgentRow; runId: string }): Promise<void> => {
       const agentStart = Date.now();
       logger?.info(
         { runId, agent: agent.name, provider: agent.provider, model: agent.model, prId: pull.id },
@@ -172,7 +174,8 @@ export class ReviewRunExecutor {
           `review: agent "${agent.name}" ${cancelled ? 'cancelled' : 'failed'}`,
         );
       }
-    }
+    };
+    await Promise.allSettled(jobs.map((job) => runOne(job)));
   }
 
   /** Execute a single agent's review against a PR, streaming progress. */

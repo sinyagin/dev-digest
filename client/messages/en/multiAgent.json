@@ -1,0 +1,63 @@
+{
+  "crumb": {
+    "global": "Global",
+    "multiAgent": "Multi-Agent Review",
+    "configure": "Configure run"
+  },
+  "title": "Run a Multi-Agent Review",
+  "subtitle": "Pick a pull request and choose which agents to fan out — they run in parallel and you compare their findings side by side.",
+  "step1": {
+    "title": "Repository and pull request",
+    "repoSelect": "Repository",
+    "noRepos": "No repositories yet — import one to start a multi-agent review",
+    "loadingRepos": "Loading repositories…",
+    "select": "Pull request",
+    "placeholder": "Select a pull request…",
+    "none": "No pull requests in this repo yet",
+    "viewPulls": "Go to Pull Requests",
+    "notFound": "That pull request was not found",
+    "loading": "Loading pull requests…"
+  },
+  "step2": {
+    "title": "Agents to run",
+    "emptyTitle": "Pick a pull request first",
+    "emptyBody": "Choose which PR to review above, then select the agents to run on it.",
+    "selectAll": "Select all",
+    "clear": "Clear",
+    "max": "max {max} agents per run",
+    "needsTwo": "Multi-agent review needs at least two agents",
+    "manageAgents": "Manage agents",
+    "disabled": "disabled",
+    "loading": "Loading agents…"
+  },
+  "footer": {
+    "estimate": "≈ {duration} · {cost} · parallel fan-out",
+    "noEstimate": "no estimate yet · parallel fan-out",
+    "excludes": "excludes {count} agent(s) without history",
+    "pickTwo": "Pick at least two agents to compare",
+    "pickPr": "Pick a pull request to continue",
+    "configureAgents": "Configure agents…",
+    "run": "Run multi-agent review",
+    "runCount": "Run multi-agent review ({count})",
+    "running": "Starting…",
+    "failed": "Could not start the run"
+  },
+  "recent": {
+    "title": "Recent multi-agent runs",
+    "subtitle": "Open a previous run to compare its findings, or start a new one.",
+    "latest": "Latest run",
+    "new": "New multi-agent review",
+    "back": "← Back to recent runs",
+    "loading": "Loading recent runs…",
+    "failed": "Could not load recent runs",
+    "pr": "#{number} · {title}",
+    "meta": "{count, plural, one {# agent} other {# agents}} · {duration} · {cost} · {when}",
+    "listLabel": "Recent multi-agent runs"
+  },
+  "resume": {
+    "title": "This pull request already has a multi-agent run",
+    "meta": "Latest run · {count, plural, one {# agent} other {# agents}} · {when}",
+    "view": "View latest results",
+    "or": "…or configure a new run below."
+  }
+}
