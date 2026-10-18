@@ -28,9 +28,10 @@ agent-runner/
    `groundFindings` / deterministic verdict).
 3. Injects `OpenRouterProvider` (built from a CI-injected env var, not the studio's
    `SecretsProvider`) into `reviewPullRequest`.
-4. Posts the result to the PR (`github_review` | `pr_comment` | `none`) using a CI-injected GitHub
-   token, writes `devdigest-result.json` (`CiResultArtifact`), and exits non-zero iff the
-   deterministic gate triggered `REQUEST_CHANGES`.
+4. Writes `devdigest-result.json` (`CiResultArtifact`), then posts the result to the PR
+   (`github_review` | `pr_comment` | `none`) using a CI-injected GitHub token. Exit codes: `0`
+   gate not tripped, `1` gate tripped `REQUEST_CHANGES`, `2` could not complete a review
+   (after pre-flight it still writes a `status: "failed"` artifact — see `README.md`).
 
 ## Why This Package Intentionally Breaks the `SecretsProvider` Rule
 
