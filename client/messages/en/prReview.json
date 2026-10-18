@@ -11,7 +11,9 @@
     "sendReply": "Send reply",
     "cancel": "Cancel",
     "turnIntoEvalCase": "Turn into eval case",
-    "turnIntoEvalCaseDisabled": "Accept or dismiss this finding first"
+    "turnIntoEvalCaseDisabled": "Accept or dismiss this finding first",
+    "learning": "Learning…",
+    "learned": "Learned"
   },
   "trifecta": {
     "lethal": "LETHAL TRIFECTA — ALL 3 PRESENT",
@@ -34,12 +36,20 @@
     "noMatchBody": "Adjust the filters above, or run a review to generate findings."
   },
   "runReview": {
+    "pickAgents": "Pick agents to run",
+    "clear": "Clear",
+    "runSingle": "Run review",
+    "runMulti": "Run multi-agent review ({count})",
+    "needsTwo": "Multi-agent review needs at least two agents",
+    "manageAgents": "Manage agents",
+    "maxAgents": "max {max} agents per run",
     "runAll": "Run all enabled agents",
     "configureAgents": "Configure agents…",
     "running": "Running…",
     "runReview": "Run Review",
     "mergedWarning": "Already merged — review is informational",
-    "mergedTooltip": "This PR is already merged; running a review won’t affect the merged code."
+    "mergedTooltip": "This PR is already merged; running a review won’t affect the merged code.",
+    "viewMultiAgentResults": "Multi-agent results"
   },
   "runStatus": {
     "elapsed": "Running · {count} agent(s)",

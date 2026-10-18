@@ -4,6 +4,9 @@ Running log of non-obvious things learned while working in `@devdigest/api`:
 gotchas, dead ends, decisions that don't belong in the fixed map in
 [`CLAUDE.md`](CLAUDE.md). Newest entries at top.
 
+## 2026-10-17 — a bare `RunRequest.parse` yields 422, not the 400 the multi-agent ACs require [Decision]
+`app.ts:143` maps any ZodError to 422, but SPEC-04 AC-14/AC-75 want 400 for bad `agentIds` (single id, nine ids, non-uuid). The trigger route (`server/src/modules/reviews/routes.ts:37`) therefore uses `safeParse` and rethrows an `AppError(…, 400)` only when an issue path starts with `agentIds`; other body errors keep their old 422. The `.refine` for mutual exclusion with `agentId`/`all` lives in `ReviewService.resolveTargets` instead of the contract, so `RunRequest` stays a plain object. Also: `Promise.allSettled` in `run-executor.ts` is safe because `runOne` catches everything itself, and `GET /agents/estimates` coexists with `/agents/:id` since find-my-way prefers static segments.
+
 ## 2026-10-11 — DB-backed `.it` suites time out when `server/.env` holds real keys [Context]
 `reviews.it.test.ts` / `skills.it.test.ts` fail with `waitForPrRuns timed out after 10000ms` (`server/test/helpers/runs.ts`) when `server/.env` carries real `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` / `GITHUB_TOKEN`; with those blanked they pass 14/14 (verified by elimination — `EMBEDDINGS_ENABLED`, `REPO_INTEL_ENABLED` and `DEVDIGEST_CLONE_DIR` were not the cause). Which failing test varies run to run, so it looks like flakiness but is environmental, and it reproduces with the new module unregistered — don't blame your change. Run them as `OPENAI_API_KEY= ANTHROPIC_API_KEY= OPENROUTER_API_KEY= GITHUB_TOKEN= pnpm test` (same for `pnpm verify:l06`). Hermetic suites (e.g. `eval.it.test.ts`, which injects `MockSecretsProvider({})` + an LLM override) are unaffected.
 

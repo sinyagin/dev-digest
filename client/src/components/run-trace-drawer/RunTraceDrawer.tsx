@@ -11,7 +11,7 @@ import { Button, Drawer, LiveLogStream, Tabs, type LogLine } from "@devdigest/ui
 import type { FindingRecord } from "@devdigest/shared";
 import { useRunTrace } from "@/lib/hooks/trace";
 import { useRunEvents } from "@/lib/hooks/reviews";
-import { DRAWER_WIDTH, LOG_HEIGHT, TABS } from "./constants";
+import { DRAWER_WIDTH, LOG_HEIGHT, TABS, type TraceTab } from "./constants";
 import { eventsToLog, traceLog } from "./helpers";
 import { s } from "./styles";
 import { TraceBody } from "./_components/TraceBody";
@@ -25,6 +25,8 @@ export interface RunTraceDrawerProps {
   findings?: FindingRecord[];
   /** When true, the drawer defaults to the live log and streams SSE. */
   running?: boolean;
+  /** Tab to open on. Defaults to "log" while `running`, otherwise "trace". */
+  initialTab?: TraceTab;
   onClose: () => void;
 }
 
@@ -39,14 +41,33 @@ export default function RunTraceDrawer({
   prNumber,
   findings = [],
   running = false,
+  initialTab,
   onClose,
 }: RunTraceDrawerProps) {
   const t = useTranslations("runs");
-  const [tab, setTab] = React.useState<string>(running ? "log" : "trace");
-  const { events, running: liveRunning } = useRunEvents(running ? [runId] : []);
-  // Load the persisted trace once we're not (or no longer) running.
-  const stillRunning = running && liveRunning;
-  const { data: trace, isLoading } = useRunTrace(runId, !stillRunning);
+  const [tab, setTab] = React.useState<string>(initialTab ?? (running ? "log" : "trace"));
+
+  // Escape closes; focus returns to whatever opened the drawer on unmount.
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+  React.useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, []);
+
+  // SSE only while the run is live AND the Log tab is showing. The Trace tab
+  // waits for `running` (driven by the caller's poll) to turn false.
+  const streaming = running && tab === "log";
+  const { events, running: liveRunning } = useRunEvents(streaming ? [runId] : []);
+  const stillRunning = running && (tab === "log" ? liveRunning : true);
+  const { data: trace, isLoading } = useRunTrace(runId, !running);
 
   // Copy the model's raw output to the clipboard (footer button), with a brief
   // visual confirmation. Disabled until the trace (and its raw output) loads.
@@ -61,7 +82,7 @@ export default function RunTraceDrawer({
   const log: LogLine[] = eventsToLog(events);
   // When historical, fall back to the trace's persisted log for the Live-log tab.
   const persistedLog: LogLine[] = traceLog(trace);
-  const shownLog = running ? log : persistedLog;
+  const shownLog = streaming ? log : persistedLog;
 
   const prCtx = prNumber != null ? `${t("drawer.pr", { number: prNumber })} · ` : "";
   const subtitle = `${prCtx}${stillRunning ? t("drawer.running") : t("drawer.completed")}`;

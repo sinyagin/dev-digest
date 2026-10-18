@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision, index } from 'drizzle-orm/pg-core';
 import { workspaces } from './core';
 import { agents } from './agents';
 import { pullRequests } from './pulls';
@@ -31,7 +31,12 @@ export const agentRuns = pgTable('agent_runs', {
   score: integer('score'),
   /** Findings that tripped the agent's gate (severity ≥ ciFailOn). */
   blockers: integer('blockers'),
-});
+  /** Parent multi-agent run this child belongs to (SPEC-04); null for single runs.
+      Arrow-function ref: `multiAgentRuns` is declared below. */
+  multiAgentRunId: uuid('multi_agent_run_id').references(() => multiAgentRuns.id, {
+    onDelete: 'set null',
+  }),
+}, (table) => [index('agent_runs_multi_agent_run_idx').on(table.multiAgentRunId)]);
 
 /** Whole trace of one run as a SINGLE jsonb document. */
 export const runTraces = pgTable('run_traces', {

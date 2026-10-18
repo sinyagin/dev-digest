@@ -8,6 +8,7 @@ import { api, API_BASE } from "../api";
 import { notify } from "../toast";
 import type {
   FindingActionKind,
+  LearnFindingResponse,
   PrReviewComment,
   ReviewRecord,
   ReviewRunResponse,
@@ -129,19 +130,23 @@ export function useCreatePrComment(prId: string | null | undefined) {
 export interface RunReviewInput {
   prId: string;
   agentId?: string;
+  /** Multi-agent run: 2-8 agent ids (mutually exclusive with agentId/all). */
+  agentIds?: string[];
   all?: boolean;
 }
 
 export function useRunReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ prId, agentId, all }: RunReviewInput) =>
+    mutationFn: ({ prId, agentId, agentIds, all }: RunReviewInput) =>
       api.post<ReviewRunResponse>(`/pulls/${prId}/review`, {
         ...(agentId ? { agentId } : {}),
+        ...(agentIds && agentIds.length > 0 ? { agentIds } : {}),
         ...(all ? { all } : {}),
       }),
-    onSuccess: (_d, { prId }) => {
+    onSuccess: (_d, { prId, agentIds }) => {
       qc.invalidateQueries({ queryKey: ["reviews", prId] });
+      if (agentIds && agentIds.length > 0) qc.invalidateQueries({ queryKey: ["multi-agent-runs"] });
     },
   });
 }
@@ -161,13 +166,36 @@ export function useFindingAction() {
       reply?: string;
       prId?: string;
     }) =>
-      api.post<{ finding: ReviewRecord["findings"][number]; memoryId?: string }>(
+      api.post<{ finding: ReviewRecord["findings"][number]; memory_id?: string }>(
         `/findings/${findingId}/${action}`,
         reply ? { reply } : undefined,
       ),
     onSuccess: (_d, { prId }) => {
       if (prId) qc.invalidateQueries({ queryKey: ["reviews", prId] });
     },
+  });
+}
+
+/** Turn a finding into a durable `learning` memory (no LLM call). The returned
+   memory id is cached under ["finding-learned", id] for the session so every
+   card instance shows "Learned" (N14). */
+export function useLearnFinding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ findingId }: { findingId: string }) =>
+      api.post<LearnFindingResponse>(`/findings/${findingId}/learn`),
+    onSuccess: (d, { findingId }) => {
+      qc.setQueryData(["finding-learned", findingId], d.memory_id);
+    },
+  });
+}
+
+/** Session-scoped "already learned" flag: the memory id, or undefined. Never fetches. */
+export function useFindingLearned(findingId: string) {
+  return useQuery<string | undefined>({
+    queryKey: ["finding-learned", findingId],
+    queryFn: () => Promise.resolve(undefined),
+    enabled: false,
   });
 }
 

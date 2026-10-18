@@ -1,9 +1,10 @@
+import React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { RunTrace } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/runs.json"; // apps/web/messages/en/runs.json
+import messages from "../../../messages/en/runs.json";
 
 // Mock the trace hooks so the drawer renders without a query client / SSE.
 const TRACE: RunTrace = {
@@ -35,11 +36,20 @@ const TRACE_WITH_SPECS: RunTrace = {
 // Mutable so individual tests can swap which trace the mocked hook returns.
 let currentTrace: RunTrace = TRACE;
 
-vi.mock("../../../../../../../lib/hooks/trace", () => ({
-  useRunTrace: () => ({ data: currentTrace, isLoading: false }),
+let traceEnabled: boolean[] = [];
+let eventRunIds: string[][] = [];
+let liveEvents: { t: string; kind: string; msg: string }[] = [];
+vi.mock("@/lib/hooks/trace", () => ({
+  useRunTrace: (_id: string, enabled = true) => {
+    traceEnabled.push(enabled);
+    return enabled ? { data: currentTrace, isLoading: false } : { data: undefined, isLoading: true };
+  },
 }));
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
-  useRunEvents: () => ({ events: [], running: false }),
+vi.mock("@/lib/hooks/reviews", () => ({
+  useRunEvents: (ids: string[]) => {
+    eventRunIds.push(ids);
+    return { events: ids.length ? liveEvents : [], running: ids.length > 0 };
+  },
 }));
 
 import RunTraceDrawer from "./RunTraceDrawer";
@@ -47,6 +57,9 @@ import RunTraceDrawer from "./RunTraceDrawer";
 afterEach(() => {
   cleanup();
   currentTrace = TRACE;
+  traceEnabled = [];
+  eventRunIds = [];
+  liveEvents = [];
 });
 
 function renderWithIntl(ui: React.ReactElement) {
@@ -108,5 +121,94 @@ describe("A5 Run Trace drawer (smoke)", () => {
     const specsPromptRow = specsLabel.parentElement!;
     expect(within(specsPromptRow).getByText(/^≈\d+ tok$/)).toBeInTheDocument();
     expect(within(specsPromptRow).getByRole("button", { name: "Copy" })).toBeInTheDocument();
+  });
+});
+
+describe("shared drawer (multi-agent additions)", () => {
+  it("shows every Trace section and copies raw output", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" onClose={() => {}} findings={[]} />);
+    for (const h of ["Configuration", "Stats", "Findings", "Prompt assembly", "Tool calls"]) {
+      expect(screen.getAllByText(h).length).toBeGreaterThan(0);
+    }
+    await user.click(screen.getByRole("button", { name: /Copy raw output/ }));
+    expect(writeText).toHaveBeenCalledWith(TRACE.raw_output);
+  });
+
+  it("initialTab=\"log\" shows persisted log lines, including a failed run's error line", () => {
+    currentTrace = {
+      ...TRACE,
+      log: [...TRACE.log, { t: "01.20", kind: "error", msg: "Provider timed out" }],
+    };
+    renderWithIntl(<RunTraceDrawer runId="r1" initialTab="log" onClose={() => {}} />);
+    expect(screen.getByText("Starting review with agent Security")).toBeInTheDocument();
+    expect(screen.getByText("Provider timed out")).toBeInTheDocument();
+  });
+
+  it("running + Trace tab: pending note, no SSE, trace fetch enabled once running ends", () => {
+    const { rerender } = renderWithIntl(
+      <RunTraceDrawer runId="r1" initialTab="trace" running onClose={() => {}} />,
+    );
+    expect(screen.getByText(/Trace is written when the run completes/)).toBeInTheDocument();
+    expect(eventRunIds.every((ids) => ids.length === 0)).toBe(true);
+    expect(traceEnabled.every((e) => e === false)).toBe(true);
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ runs: messages }}>
+        <div data-theme="dark">
+          <RunTraceDrawer runId="r1" initialTab="trace" running={false} onClose={() => {}} />
+        </div>
+      </NextIntlClientProvider>,
+    );
+    expect(traceEnabled.at(-1)).toBe(true);
+    expect(screen.getByText("Configuration")).toBeInTheDocument();
+  });
+
+  it("running + Log tab subscribes to the run's events", () => {
+    renderWithIntl(<RunTraceDrawer runId="r1" initialTab="log" running onClose={() => {}} />);
+    expect(eventRunIds.at(-1)).toEqual(["r1"]);
+  });
+
+  it("renders streamed log lines in the live log while running (AC-60)", () => {
+    liveEvents = [
+      { t: "00.10", kind: "info", msg: "Fetching diff" },
+      { t: "00.50", kind: "tool", msg: "Calling review_file" },
+    ];
+    renderWithIntl(<RunTraceDrawer runId="r1" initialTab="log" running onClose={() => {}} />);
+    expect(screen.getByText("Fetching diff")).toBeInTheDocument();
+    expect(screen.getByText("Calling review_file")).toBeInTheDocument();
+    // The persisted trace log is not shown while streaming.
+    expect(screen.queryByText("Starting review with agent Security")).not.toBeInTheDocument();
+  });
+
+  it("Escape closes and focus returns to the opener on unmount", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    function Host() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>opener</button>
+          {open && (
+            <RunTraceDrawer
+              runId="r1"
+              onClose={() => {
+                onClose();
+                setOpen(false);
+              }}
+            />
+          )}
+        </>
+      );
+    }
+    renderWithIntl(<Host />);
+    const opener = screen.getByRole("button", { name: "opener" });
+    await user.click(opener);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 });

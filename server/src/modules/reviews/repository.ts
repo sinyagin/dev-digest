@@ -21,6 +21,8 @@ export type ReviewRow = typeof t.reviews.$inferSelect;
 import * as reviewRepo from './repository/review.repo.js';
 import * as runRepo from './repository/run.repo.js';
 import * as pullRepo from './repository/pull.repo.js';
+import * as multiAgentRepo from './repository/multi-agent.repo.js';
+import * as memoryRepo from './repository/memory.repo.js';
 
 export class ReviewRepository {
   constructor(private db: Db) {}
@@ -144,8 +146,49 @@ export class ReviewRepository {
     prId: string;
     provider: string | null;
     model: string | null;
+    multiAgentRunId?: string | null;
   }): Promise<string> {
     return runRepo.createAgentRun(this.db, values);
+  }
+
+  /** Parent multi_agent_runs row + N linked running agent_runs, in one transaction. */
+  createMultiAgentRunWithChildren(input: {
+    workspaceId: string;
+    prId: string;
+    agents: { id: string; provider: string | null; model: string | null }[];
+  }): Promise<{ multiAgentRunId: string; runIds: string[] }> {
+    return multiAgentRepo.createMultiAgentRunWithChildren(this.db, input);
+  }
+
+  getMultiAgentRun(workspaceId: string, id: string): Promise<multiAgentRepo.MultiAgentRunRow | undefined> {
+    return multiAgentRepo.getMultiAgentRun(this.db, workspaceId, id);
+  }
+
+  listMultiAgentRuns(workspaceId: string, opts: { repoId?: string; prId?: string; limit: number }) {
+    return multiAgentRepo.listMultiAgentRuns(this.db, workspaceId, opts);
+  }
+
+  childrenOfMultiAgentRun(multiAgentRunId: string) {
+    return multiAgentRepo.childrenOfMultiAgentRun(this.db, multiAgentRunId);
+  }
+
+  findingsByReviewIds(reviewIds: string[]): Promise<multiAgentRepo.FindingRowT[]> {
+    return multiAgentRepo.findingsByReviewIds(this.db, reviewIds);
+  }
+
+  estimatesForWorkspace(workspaceId: string) {
+    return multiAgentRepo.estimatesForWorkspace(this.db, workspaceId);
+  }
+
+  /** Idempotent per finding; returns the memory row id. */
+  findOrCreateLearning(input: {
+    workspaceId: string;
+    repoId: string;
+    findingId: string;
+    prNumber: number;
+    content: string;
+  }): Promise<string> {
+    return memoryRepo.findOrCreateLearning(this.db, input);
   }
 
   completeAgentRun(

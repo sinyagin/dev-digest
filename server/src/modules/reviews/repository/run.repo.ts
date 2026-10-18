@@ -122,6 +122,7 @@ export async function createAgentRun(
     prId: string;
     provider: string | null;
     model: string | null;
+    multiAgentRunId?: string | null;
   },
 ): Promise<string> {
   const [row] = await db
@@ -132,6 +133,7 @@ export async function createAgentRun(
       prId: values.prId,
       provider: values.provider,
       model: values.model,
+      multiAgentRunId: values.multiAgentRunId ?? null,
       status: 'running',
       source: 'local',
     })

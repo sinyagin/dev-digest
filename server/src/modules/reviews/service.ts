@@ -46,8 +46,33 @@ export class ReviewService {
    */
   async resolveTargets(
     workspaceId: string,
-    opts: { agentId?: string; all?: boolean },
+    opts: { agentId?: string; all?: boolean; agentIds?: string[] },
   ): Promise<AgentRow[]> {
+    if (opts.agentIds !== undefined) {
+      if (opts.agentId !== undefined || opts.all) {
+        throw new AppError(
+          'invalid_run_request',
+          'agentIds cannot be combined with agentId or all',
+          400,
+        );
+      }
+      const ids = [...new Set(opts.agentIds)];
+      if (ids.length < 2 || ids.length > 8) {
+        throw new AppError(
+          'invalid_run_request',
+          'A multi-agent run needs between 2 and 8 distinct agentIds',
+          400,
+        );
+      }
+      // Resolve EVERY id (workspace-scoped) before any insert (AC-15, AC-73).
+      const agents: AgentRow[] = [];
+      for (const id of ids) {
+        const agent = await this.agents.getById(workspaceId, id);
+        if (!agent) throw new NotFoundError('Agent not found');
+        agents.push(agent);
+      }
+      return agents;
+    }
     if (opts.all) return this.agents.listEnabled(workspaceId);
     if (opts.agentId) {
       const agent = await this.agents.getById(workspaceId, opts.agentId);
@@ -106,7 +131,12 @@ export class ReviewService {
     prId: string,
     targets: AgentRow[],
     logger?: Logger,
-  ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
+    opts: { multiAgent?: boolean } = {},
+  ): Promise<{
+    runs: { run_id: string; agent_id: string; agent_name: string }[];
+    reviews: ReviewDto[];
+    multi_agent_run_id: string | null;
+  }> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const repo = await this.repo.getRepo(pull.repoId);
@@ -117,16 +147,32 @@ export class ReviewService {
     // stream. The actual (slow) review runs in the background below.
     const runs: { run_id: string; agent_id: string; agent_name: string }[] = [];
     const jobs: { agent: AgentRow; runId: string }[] = [];
-    for (const agent of targets) {
-      const runId = await this.repo.createAgentRun({
+    let multiAgentRunId: string | null = null;
+    if (opts.multiAgent) {
+      // Parent + all children atomically (AC-17).
+      const created = await this.repo.createMultiAgentRunWithChildren({
         workspaceId,
-        agentId: agent.id,
         prId,
-        provider: agent.provider,
-        model: agent.model,
+        agents: targets.map((a) => ({ id: a.id, provider: a.provider, model: a.model })),
       });
-      runs.push({ run_id: runId, agent_id: agent.id, agent_name: agent.name });
-      jobs.push({ agent, runId });
+      multiAgentRunId = created.multiAgentRunId;
+      targets.forEach((agent, i) => {
+        const runId = created.runIds[i]!;
+        runs.push({ run_id: runId, agent_id: agent.id, agent_name: agent.name });
+        jobs.push({ agent, runId });
+      });
+    } else {
+      for (const agent of targets) {
+        const runId = await this.repo.createAgentRun({
+          workspaceId,
+          agentId: agent.id,
+          prId,
+          provider: agent.provider,
+          model: agent.model,
+        });
+        runs.push({ run_id: runId, agent_id: agent.id, agent_name: agent.name });
+        jobs.push({ agent, runId });
+      }
     }
 
     // Fire-and-forget: the HTTP response returns now with the runIds; reviews
@@ -135,7 +181,7 @@ export class ReviewService {
       logger?.error({ prId, err: (err as Error).message }, 'review: background execution crashed');
     });
 
-    return { runs, reviews: [] };
+    return { runs, reviews: [], multi_agent_run_id: multiAgentRunId };
   }
 
   private publish(runId: string, kind: RunEventKind, msg: string, data?: unknown) {

@@ -7,6 +7,8 @@ import messages from "../../../../../../../../messages/en/prReview.json";
 
 vi.mock("../../../../../../../lib/hooks/reviews", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
+  useLearnFinding: () => ({ mutate: vi.fn(), isPending: false }),
+  useFindingLearned: () => ({ data: undefined }),
   useDeleteReview: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 

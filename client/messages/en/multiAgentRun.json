@@ -1,0 +1,75 @@
+{
+  "crumb": { "multiAgent": "Multi-Agent Review" },
+  "loading": "Loading multi-agent run…",
+  "notFound": {
+    "title": "Multi-agent run not found",
+    "body": "This run does not exist or was deleted.",
+    "cta": "Configure run"
+  },
+  "loadError": "Couldn't load this multi-agent run",
+  "header": {
+    "title": "Multi-Agent Review · {count, plural, one {# selected agent} other {# selected agents}} · parallel",
+    "prFallback": "PR #{number}",
+    "configure": "Configure run",
+    "summary": "{count, plural, one {# agent} other {# agents}} · parallel fan-out · {duration} total · {cost}",
+    "summarySoFar": "{count, plural, one {# agent} other {# agents}} · parallel fan-out · {duration} so far · {cost} so far",
+    "noneCompleted": "No agent completed",
+    "noChildren": "This multi-agent run has no remaining agent runs"
+  },
+  "view": {
+    "label": "View",
+    "columns": "Columns",
+    "tabs": "Tabs"
+  },
+  "status": {
+    "running": "Running",
+    "runningElapsed": "Running · {elapsed}",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
+  "column": {
+    "meta": "{duration} · {cost}",
+    "score": "Score {score}",
+    "noScore": "Score unavailable",
+    "noFindings": "No findings",
+    "findingCount": "{count, plural, one {# finding} other {# findings}}",
+    "viewTrace": "View trace",
+    "logs": "Logs",
+    "viewTraceFor": "View trace for {agent}",
+    "logsFor": "Logs for {agent}",
+    "failedReason": "Failed: {reason}",
+    "failedUnknown": "The agent failed without a reason.",
+    "cancelledNote": "This agent run was cancelled.",
+    "waiting": "Waiting for the first log line…",
+    "findingsList": "Findings from {agent}"
+  },
+  "disagreements": {
+    "title": "Where agents disagree",
+    "onlyConflicts": "Show only conflicts",
+    "didNotFlag": "did not flag",
+    "allAgree": "All participating agents agree on every flagged location.",
+    "needsTwo": "At least two finished agents are needed to compare results.",
+    "needsTwoRunning": "At least two finished agents are needed to compare results — {running} still running.",
+    "conflictBadge": "Conflict",
+    "agreeBadge": "Agree",
+    "rowHeader": "{file}:{start}-{end}"
+  },
+  "announce": {
+    "column": "{agent}: {status}",
+    "run": "Multi-agent run: {status}",
+    "runDone": "Done",
+    "runFailed": "Failed"
+  },
+  "tabs": {
+    "label": "Agents",
+    "running": "{agent} · Running",
+    "scored": "{agent} · {score}",
+    "stateOnly": "{agent} · {status}",
+    "verdict": "Verdict",
+    "summary": "Summary",
+    "noSummary": "No summary available.",
+    "noFindings": "This agent reported no findings.",
+    "findingsLoading": "Loading findings…"
+  }
+}

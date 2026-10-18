@@ -20,7 +20,8 @@ import {
 import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
-import { githubBlobUrl } from "../../../../../../../lib/github-urls";
+import { githubBlobUrl } from "@/lib/github-urls";
+import { LearnButton } from "./_components/LearnButton";
 import { TurnIntoEvalCase } from "./_components/TurnIntoEvalCase";
 import { s } from "./styles";
 
@@ -113,6 +114,7 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            <LearnButton findingId={f.id} />
             <Button
               kind="ghost"
               size="sm"

@@ -14,10 +14,11 @@ import { PrDetailHeader } from "./_components/PrDetailHeader";
 import { OverviewTab } from "./_components/OverviewTab";
 import { FindingsTab } from "./_components/FindingsTab";
 import { DiffTab } from "./_components/DiffTab";
-import RunTraceDrawer from "./_components/RunTraceDrawer";
+import RunTraceDrawer from "@/components/run-trace-drawer";
 import { usePullDetail, usePulls } from "../../../../../lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrReviews, useCancelRun, usePrActiveRuns, usePrRuns, useDeleteRun } from "../../../../../lib/hooks/reviews";
+import { useMultiAgentRuns } from "../../../../../lib/hooks/multi-agent";
 import { useActiveRepo, useRepoNotFound } from "../../../../../lib/repo-context";
 import { ApiError } from "../../../../../lib/api";
 import { githubPrUrl } from "../../../../../lib/github-urls";
@@ -49,6 +50,9 @@ export default function PRDetailPage() {
   const qc = useQueryClient();
   const { data: activeRuns } = usePrActiveRuns(prId);
   const { data: prRuns } = usePrRuns(prId);
+  // Latest multi-agent run of this PR → header affordance back to its results.
+  const { data: multiRuns } = useMultiAgentRuns({ prId }, 1);
+  const latestMultiRun = multiRuns?.[0] ?? null;
   const deleteRun = useDeleteRun(prId);
   const liveRunIds = (activeRuns ?? []).map((r) => r.run_id);
   const reviewRunning = liveRunIds.length > 0;
@@ -150,12 +154,18 @@ export default function PRDetailPage() {
       <PrDetailHeader
         pr={pr}
         prId={prId}
+        repoId={params.repoId}
         tab={tab}
         findingsCount={findingsCount}
         githubUrl={repoFullName ? githubPrUrl(repoFullName, pr.number) : null}
         onSetTab={setTab}
         onRunStart={() => setTab("findings")}
         onRunsStarted={() => invalidateActiveRuns()}
+        onOpenMultiAgent={
+          latestMultiRun
+            ? () => router.push(`/repos/${latestMultiRun.repo_id}/multi-agent/${latestMultiRun.id}`)
+            : null
+        }
       />
 
       <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>

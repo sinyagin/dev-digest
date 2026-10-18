@@ -13,7 +13,7 @@ export async function actOnFinding(
   workspaceId: string,
   findingId: string,
   action: FindingActionKind,
-): Promise<{ finding: ReviewDtoFinding }> {
+): Promise<{ finding: ReviewDtoFinding; memory_id?: string }> {
   const ctx = await repo.findingContext(findingId);
   if (!ctx || ctx.pull.workspaceId !== workspaceId) {
     throw new NotFoundError('Finding not found');
@@ -27,6 +27,19 @@ export async function actOnFinding(
     case 'dismiss': {
       const row = await repo.setFindingDismissed(findingId, new Date());
       return { finding: findingRowToDto(row!) };
+    }
+    case 'learn': {
+      // Deterministic, no LLM call (N9/N14): the finding text is stored as data.
+      const f = ctx.finding;
+      const content = `${f.title}\n\n${f.rationale}\n\n(${f.file}:${f.startLine}-${f.endLine})`;
+      const memory_id = await repo.findOrCreateLearning({
+        workspaceId,
+        repoId: ctx.pull.repoId,
+        findingId,
+        prNumber: ctx.pull.number,
+        content,
+      });
+      return { finding: findingRowToDto(ctx.finding), memory_id };
     }
     default:
       throw new AppError('invalid_action', `Action '${action}' is not available in the starter`, 400);

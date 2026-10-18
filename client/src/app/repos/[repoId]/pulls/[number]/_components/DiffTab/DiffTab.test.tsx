@@ -13,6 +13,8 @@ vi.mock("@/lib/hooks/reviews", () => ({
   useCreatePrComment: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useSmartDiff: () => ({ data: SMART_DIFF }),
   useFindingAction: () => ({ mutate, isPending: false }),
+  useLearnFinding: () => ({ mutate: vi.fn(), isPending: false }),
+  useFindingLearned: () => ({ data: undefined }),
 }));
 
 import { DiffTab } from "./DiffTab";
