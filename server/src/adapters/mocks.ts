@@ -17,6 +17,7 @@ import type {
   OpenPrPayload,
   CommitFilesPayload,
   IssueMeta,
+  WorkflowRunInfo,
   GitClient,
   CloneOptions,
   UnifiedDiff,
@@ -126,6 +127,16 @@ export interface MockGitHubOptions {
   login?: string;
   /** Existing inline review comments returned by listReviewComments. */
   comments?: PrReviewComment[];
+  /** Default branch returned by getDefaultBranch (default 'main'). */
+  defaultBranch?: string;
+  /** Repo Actions secret names; 'forbidden' makes listRepoSecretNames reject with a 403. */
+  secretNames?: string[] | 'forbidden';
+  /** Workflow runs per `owner/name` returned by listWorkflowRuns. */
+  workflowRuns?: Record<string, WorkflowRunInfo[]>;
+  /** Artifact zip bytes per workflow run id (absent / null → no artifact). */
+  artifacts?: Record<number, Uint8Array | null>;
+  /** Make commitFiles reject for these `owner/name` repos (simulates 403 etc.). */
+  commitFailures?: Record<string, { status: number; message: string }>;
 }
 
 export class MockGitHubClient implements GitHubClient {
@@ -133,6 +144,10 @@ export class MockGitHubClient implements GitHubClient {
   public openedPrs: OpenPrPayload[] = [];
   public committed: CommitFilesPayload[] = [];
   public createdComments: CreateReviewCommentInput[] = [];
+  /** Every git ref this client wrote, e.g. `heads/devdigest/ci` (asserts "never the default branch"). */
+  public refWrites: string[] = [];
+  /** Names of the CI-related GitHub calls made (asserts "listing stored runs makes 0 calls"). */
+  public callLog: string[] = [];
 
   constructor(private opts: MockGitHubOptions = {}) {}
 
@@ -221,12 +236,51 @@ export class MockGitHubClient implements GitHubClient {
     return { url: 'https://github.com/mock/mock/pull/1' };
   }
 
-  async commitFiles(_repo: RepoRef, payload: CommitFilesPayload): Promise<{ branch: string }> {
+  async commitFiles(repo: RepoRef, payload: CommitFilesPayload): Promise<{ branch: string }> {
+    this.callLog.push('commitFiles');
+    const failure = this.opts.commitFailures?.[`${repo.owner}/${repo.name}`];
+    if (failure) throw Object.assign(new Error(failure.message), { status: failure.status });
     this.committed.push(payload);
+    this.refWrites.push(`heads/${payload.branch}`);
     return { branch: payload.branch };
   }
 
+  async getDefaultBranch(_repo: RepoRef): Promise<string> {
+    this.callLog.push('getDefaultBranch');
+    return this.opts.defaultBranch ?? 'main';
+  }
+
+  async listRepoSecretNames(_repo: RepoRef): Promise<string[]> {
+    this.callLog.push('listRepoSecretNames');
+    const names = this.opts.secretNames ?? [];
+    if (names === 'forbidden') {
+      throw Object.assign(new Error('Resource not accessible by personal access token'), {
+        status: 403,
+      });
+    }
+    return names;
+  }
+
+  async listWorkflowRuns(
+    repo: RepoRef,
+    _workflowFile: string,
+    limit: number,
+  ): Promise<WorkflowRunInfo[]> {
+    this.callLog.push('listWorkflowRuns');
+    return (this.opts.workflowRuns?.[`${repo.owner}/${repo.name}`] ?? []).slice(0, limit);
+  }
+
+  async downloadRunArtifact(
+    _repo: RepoRef,
+    runId: number,
+    _name: string,
+  ): Promise<Uint8Array | null> {
+    this.callLog.push('downloadRunArtifact');
+    return this.opts.artifacts?.[runId] ?? null;
+  }
+
   async findOpenPr(_repo: RepoRef, branch: string): Promise<{ url: string } | null> {
+    this.callLog.push('findOpenPr');
     const pr = this.openedPrs.find((p) => p.head === branch);
     return pr ? { url: 'https://github.com/mock/mock/pull/1' } : null;
   }

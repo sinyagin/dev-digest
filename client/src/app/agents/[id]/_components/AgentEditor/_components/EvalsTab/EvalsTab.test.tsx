@@ -124,8 +124,8 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("EvalsTab", () => {
-  it("is the last tab, after Config/Skills/Context", () => {
-    expect(TABS.map((x) => x.key)).toEqual(["config", "skills", "context", "evals"]);
+  it("comes after Config/Skills/Context (CI follows it)", () => {
+    expect(TABS.map((x) => x.key)).toEqual(["config", "skills", "context", "evals", "ci"]);
   });
 
   it("shows tiles, N / M passing and rows with tag and expected/got", async () => {

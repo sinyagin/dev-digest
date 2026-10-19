@@ -91,6 +91,16 @@ export const RunTrace = z.object({
       absent on traces recorded before this field existed. */
   specs_truncated: z.array(z.string()).optional(),
   log: z.array(RunLogLine),
+  /** Reproducibility block, set only on CI-ingested runs (`config.source = 'ci'`). */
+  ci: z
+    .object({
+      manifest_sha256: z.string(),
+      agent_version: z.number().int(),
+      dependencies: z.object({ runner: z.string(), reviewer_core: z.string(), node: z.string() }),
+      commit_sha: z.string(),
+      workflow_run_id: z.number().int(),
+    })
+    .nullish(),
 });
 export type RunTrace = z.infer<typeof RunTrace>;
 

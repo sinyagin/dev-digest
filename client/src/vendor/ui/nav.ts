@@ -39,6 +39,7 @@ export const NAV: NavGroup[] = [
         gKey: "c",
       },
       { key: "eval", label: "Eval Dashboard", icon: "FlaskConical", href: "/eval", gKey: "e" },
+      { key: "ci-runs", label: "CI Runs", icon: "GitPullRequest", href: "/ci-runs" },
     ],
   },
   {

@@ -140,6 +140,21 @@ export interface CommitFilesPayload {
   files: CommitFile[];
 }
 
+/** A GitHub Actions workflow run, as much as the CI ingestion needs. */
+export interface WorkflowRunInfo {
+  id: number;
+  /** queued | in_progress | completed | ... */
+  status: string;
+  /** success | failure | cancelled | skipped | ... (null until completed). */
+  conclusion: string | null;
+  /** Head commit SHA of the run (verified against the artifact). */
+  headSha: string;
+  htmlUrl: string;
+  createdAt: string;
+  /** First PR GitHub associates with the run (same-repo PRs only), else null. */
+  prNumber: number | null;
+}
+
 export interface GitHubClient {
   listPullRequests(repo: RepoRef): Promise<PrMeta[]>;
   getPullRequest(repo: RepoRef, n: number): Promise<PrDetail>;
@@ -162,6 +177,20 @@ export interface GitHubClient {
   /** The open PR whose head is `branch`, if any (so re-publish reuses it). */
   findOpenPr(repo: RepoRef, branch: string): Promise<{ url: string } | null>;
   getIssue(repo: RepoRef, n: number): Promise<IssueMeta>;
+  /** The repository's default branch name (resolved server-side, never client-supplied). */
+  getDefaultBranch(repo: RepoRef): Promise<string>;
+  /**
+   * Names (never values) of the repo's Actions secrets. Rejects with the
+   * underlying error (carrying `status`, e.g. 403) when GitHub refuses the lookup.
+   */
+  listRepoSecretNames(repo: RepoRef): Promise<string[]>;
+  /** Most recent runs (newest first, `limit` ≤ 50) of one workflow file. */
+  listWorkflowRuns(repo: RepoRef, workflowFile: string, limit: number): Promise<WorkflowRunInfo[]>;
+  /**
+   * Raw zip bytes of the run's artifact called `name`, or null when the run has
+   * none / it expired. Rejects (name `ArtifactTooLargeError`) when it is oversize.
+   */
+  downloadRunArtifact(repo: RepoRef, runId: number, name: string): Promise<Uint8Array | null>;
   /** GET /user — for "posting as @user". */
   currentLogin(): Promise<string>;
 }
